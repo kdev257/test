@@ -1,0 +1,100 @@
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Generate MRN</h3></center>
+
+<div class="container-fluid">
+    <div class="row vh-100">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 bg-dark text-white d-flex flex-column p-3">
+            <div class="mb-4">
+                <img src="logo.png" alt="Company Logo" class="img-fluid mb-3">
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item mb-2">
+                    <a href="{% url 'receipts_pending_mrn' %}" class="nav-link text-white">Generate MRN <span style="color: red;">{{ mrn_count }}</span></a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'gate_entry_register' %}" class="nav-link text-white">Gate Entry Register</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Create Journal Entry</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Tasks</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Reports</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Settings</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Help</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-9 col-lg-10 px-md-4">
+            <header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
+                <div class="input-group w-50">
+                    <input type="text" class="form-control" placeholder="Search...">
+                </div>
+                <div class="d-flex align-items-center">
+                    <h4 class='text-warning'> Welcome Mr/Mrs.  
+                        <span class="me-3">{{ profile.user_id.first_name }} <span>{{ profile.user_id.last_name }}</span></span>
+                    </h4>
+                </div>
+            </header>
+
+            <!-- Gate Entry Table -->
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Gate Entry Number</th>
+                        <th>Gate Entry Date</th>
+                        <th>Truck Number</th>
+                        <th>Driver Name</th>
+                        <th>License Number</th>
+                        <th>Invoice Number</th>
+                        <th>Invoice Date</th>
+                        <th>Item</th>
+                        <th>Invoice Quantity</th>
+                        <th>Invoice Value</th>
+                        <th>MRN Number/Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if mrn_queryset %}
+                        {% for ge in mrn_queryset %}
+                            <tr>
+                                <td>{{ ge.id }}</td>
+                                <td>{{ ge.gate_entry_number }}</td>
+                                <td>{{ ge.gate_entry_date }}</td>
+                                <td>{{ ge.truck_number }}</td>
+                                <td>{{ ge.driver_name }}</td>
+                                <td>{{ ge.license_number }}</td>
+                                <td>{{ ge.invoice_no }}</td>
+                                <td>{{ ge.invoice_date }}</td>
+                                <td>{{ ge.item }}</td>
+                                <td>{{ ge.invoice_quantity }}</td>
+                                <td>{{ ge.invoice_value }}</td>
+                                <td>{{ ge.mrn_number }}/{{ ge.mrn_date }}</td>
+                                <td>
+                                    <a href="{% url 'generate_mrn' ge.id %}">
+                                        <button class='button-primary'>Generate MRN</button>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="13">No gate entries available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </main>
+    </div>
+</div>

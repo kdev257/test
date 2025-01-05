@@ -1,0 +1,18 @@
+{% extends 'inventory/index.html' %}
+{% load crispy_forms_tags %}
+{% block main-content %} <br><br>
+<div class='container mt-5'>
+    <div class='row'>
+        <div class= 'col-sm-6 m-auto'><br><br>
+            <form method = POST>
+                {% csrf_token %}
+                {{form|crispy}}
+                <p class='mt-5'> Dont have an account? Create One <a href="/register">here</a></p>
+                <button type="submit" value="Login" class="btn btn-success">LOGIN</button>
+                <a href="{% url 'password_reset' %}">Reset password</a>
+            </form><br><br> 
+{% endblock main-content %}  
+            
+        </div>
+    </div>
+</div>

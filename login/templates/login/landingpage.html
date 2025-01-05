@@ -1,0 +1,83 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% block main-content %}
+{% if request.user.is_authenticated %}
+<div class='container'>
+ <style>
+        /* Add your custom CSS styles here */
+        body {
+            background: color #007bff;
+        }
+        .landing-header {
+            {% comment %} text-align: center; {% endcomment %}
+            padding: 30px 0;
+            background-color: #007bff;
+            color: #fff;
+        }
+        .landing-header h1 {
+            font-size: 36px;
+        }
+        .landing-content {
+            padding: 50px 0;
+            {% comment %} text-align: center; {% endcomment %}
+        }
+        .landing-content p {
+            font-size: 18px;
+            color: #333;
+            line-height: 1.6;
+        }
+        .cta-button {
+            margin-top: 30px;
+        }
+        .cta-button a {
+            display: inline-block;
+            padding: 15px 30px;
+            background-color: #007bff;
+            color: #fff;
+            text-decoration: none;
+            border-radius: 5px;
+            font-size: 20px;
+            transition: background-color 0.3s ease;
+        }
+        .cta-button a:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>  
+        <div class="landing-header m-3">
+          <h1>Welcome to Our ERP System</h1>
+          <p>Streamline your business processes with our powerful ERP solution.</p>
+      </div>
+      <div class="container">
+        <div class="row">
+          <div class="col-md-12">
+      <div class="landing-content">
+          <h2 class='text-warning'>What is ERP?</h2>  
+          <p class='text-primary'>
+              ERP (Enterprise Resource Planning) is a software system that integrates various business processes and departments into a single unified platform. It helps organizations manage their resources, automate workflows, and improve overall efficiency.
+          </p>
+          <h2 class= 'text-warning'>Key Features</h2>
+          <p>
+              Our ERP system offers a wide range of features, including:
+              <ul class='text-primary'>
+                <li><a href="{% url 'login' %}">Inventory Management</li></a>
+                  <li>Sales and Order Processing</li>
+                  <li>Financial Management</li>
+                  <li>Human Resources</li>
+                  <li>Production Planning</li>
+                  <li>Customer Relationship Management (CRM)</li>
+              </ul>
+          </p>
+          <div class="cta-button">
+              <a href="#contact">Get Started</a>
+          </div>
+      </div>
+      <footer>
+          <p>Contact us at <a id="contact" href="mailto:contact@example.com">contact@example.com</a></p>
+      </footer>
+      {% endif %}
+      {% endblock main-content %}
+      </div>
+    </div>
+  </div>

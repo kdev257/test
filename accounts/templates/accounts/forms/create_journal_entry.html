@@ -1,0 +1,121 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+  <h2 class='text-success text-center'>Create Journal Entry</h2><br><br><br>  
+ <form method="POST">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    <div class="container">
+        <div class="row">
+            <div class="col-sm-12">
+            </div>
+        </div>
+    </div>
+    <br><br><br>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Transaction CAT</th>
+          <th>Transaction Unit</th>
+          <th>Transaction Type</th>
+          <th>Account</th>
+          <th>Debit Amount</th>
+          <th>Credit Amount</th>
+          <th>Reference</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for form in formset %}
+          <tr>
+            <td>{{ form.transaction_type}}</td>
+            <td>{{ form.unit }}</td>
+            <td>{{ form.transaction_cat }}</td>
+            <td>{{ form.account_chart }}</td>
+            <td>{{ form.debit_amount }}</td>
+            <td>{{ form.credit_amount }}</td>
+            <td>{{ form.reference }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <br><br><br>
+
+    <center><button type="button" id="add-more">Add Another Row</button>
+    <button type="submit">Submit</button></center>
+  </form> 
+
+  <script type="text/javascript">
+    document.getElementById('add-more').addEventListener('click', function() {
+        var totalForms = document.getElementById('id_form-TOTAL_FORMS');
+        var formCount = parseInt(totalForms.value);
+        var formClone = document.querySelector('tbody tr').cloneNode(true);
+        
+        formClone.querySelectorAll('input, select').forEach(function(input) {
+            var newName = input.name.replace(/-\d+-/, '-' + formCount + '-');
+            input.name = newName;
+            input.value = '';
+        });
+
+        document.querySelector('tbody').appendChild(formClone);
+        totalForms.value = formCount + 1;
+    });
+  </script>
+  <script>
+    // Function to disable or enable the credit_amount field
+  //  function toggleCreditAmount(selectElement) {
+    //    const row = selectElement.closest('tr');  // Get the current row
+      //  const transactionCat = selectElement.value;
+        //const creditField = row.querySelector('input[name$="-credit_amount"]');  // Find credit_amount field in the row
+        
+        // Disable credit_amount if transaction_cat is 'Debit'
+        //if (transactionCat === 'Debit') {
+            //creditField.value = ;  
+          //  creditField.disabled = true;
+        //} else {
+          //  creditField.disabled = false;
+        //}
+    //}
+
+    // Add event listeners to all transaction_cat select fields
+    //document.querySelectorAll('select[name$="-transaction_cat"]').forEach(select => {
+        // Initialize state based on current value
+      //  toggleCreditAmount(select);
+        
+        // Add change event listener
+        //select.addEventListener('change', function() {
+          //  toggleCreditAmount(this);
+        //});
+    //});
+//</script>
+ // <script>
+    // Function to disable or enable the credit_amount field
+   // function toggleDebitAmount(selectElement) {
+     //   const row = selectElement.closest('tr');  // Get the current row
+       // const transactionCat = selectElement.value;
+        //const debitField = row.querySelector('input[name$="-debit_amount"]');  // Find credit_amount field in the row
+        
+        // Disable credit_amount if transaction_cat is 'Debit'
+        //if (transactionCat === 'Credit') {
+            //debitField.value = 0;  // Clear any existing value
+          //  debitField.disabled = true;
+        //} else {
+          //  debitField.disabled = false;
+       // }
+   // }
+
+    // Add event listeners to all transaction_cat select fields
+    //document.querySelectorAll('select[name$="-transaction_cat"]').forEach(select => {
+        // Initialize state based on current value
+      //  toggleDebitAmount(select);
+        
+        // Add change event listener
+        //select.addEventListener('change', function() {
+          //  toggleDebitAmount(this);
+        //});
+    //});
+//</script> 
+
+{% endblock main-content %}

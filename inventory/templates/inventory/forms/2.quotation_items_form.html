@@ -1,0 +1,19 @@
+{% extends "inventory/index.html" %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12">
+            <form method="POST" id="main-form" hx-post="{% url 'quotation_items' 9 %}" hx-target="#result" hx-swap="outerHTML">
+                {% csrf_token %}
+                {{ form|crispy }}
+                {{ decision_form|crispy }}
+                <center>
+                    <button type="submit" class="btn btn-primary">Submit</button>
+                </center>
+            </form>
+        </div>
+    </div>
+    <div id="result"></div>
+</div>
+{% endblock main-content %}

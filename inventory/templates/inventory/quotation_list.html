@@ -1,0 +1,60 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+  <!-- Display a table with serial numbers -->
+  <center><h3>Quotation List</h3></center>
+  <table class="table table-hover">
+    <thead>
+      <tr>
+        <th>Serial No.</th>
+        <th>ID</th>
+        <th>Unit</th>
+        <th>Supplier</th>
+        <th>Quotation Number</th>
+        <th>Quotation Date</th>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Rate</th>
+        <th>Amount</th>
+        <th>Valid_Till</th>
+        <th>Tax_Term</th>
+        <th>Form C</th>
+        <th>Form C</th>
+        <th>Approver</th>
+        <th>Approval Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in list %}
+      {% comment %} {% for item in item  %} {% endcomment %}
+        <tr>
+          <td>{{ forloop.counter }}</td> <!-- Serial number -->
+          <td>{{ po.id }}</td>
+          <td>{{ po.unit}}</td>
+          <td>{{ po.supplier }}</td>
+          <td>{{ po.quotation_no }}</td>
+          <td>{{ po.quotation_date }}</td>
+          <td>{{ po.item }}</td>
+          <td>{{ po.quantity }}</td>
+          <td>{{ po.unit_rate }}</td>
+          <td>{{ po.value}}</td>          
+          <td>{{ po.valid_till}}</td>          
+          <td>{{ po.taxes}}</td>          
+          <td>{{ po.form_c}}</td>          
+          <td>{{ po.approver}}</td>          
+          <td>{{ po.approved }}</td>
+          <td>
+            <a href="{% url 'approve_quotation' po.id %}" 
+               class="btn btn-primary {% if po.approved %}disabled{% endif %}">
+               {% if po.approved %}
+                   Approved
+               {% else %}
+                   Approve
+               {% endif %}
+            </a>
+        </td>
+        </tr>        
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

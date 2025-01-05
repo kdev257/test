@@ -1,0 +1,55 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>RECEIPTS PENDING STOCK MRN</h3></center>
+
+<!-- Search form -->
+<form method="GET" action="{% url 'mrn_awaiting_stock_location' %}" class="mb-3">
+    <div class="input-group w-50">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>                  
+            <th>Gate Entry</th>
+            <th>Date</th>
+            <th>Item</th>
+            <th>Supplier</th>
+            <th>Billed_Quantity</th>
+            <th>Actual_Quantity</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if pending %}
+            {% for ge in pending %}
+                <tr>
+                    <td>{{ ge.id }}</td>                  
+                    <td>{{ ge.gate_entry_number }}</td>
+                    <td>{{ ge.gate_entry_date }}</td>
+                    <td>{{ ge.item_cat }}</td>                    
+                    <td>{{ ge.po.quotation.supplier }}</td>                    
+                    <td>{{ ge.invoice_quantity }}</td>                    
+                    <td>{{ ge.actual_quantity }}</td>
+                    
+                    
+                    <td>
+                        <a href="{% url 'generate_mrn' ge.id  %}">
+                            <button class='btn btn-primary'>Create MRN</button>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="13">No records found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock main-content %}

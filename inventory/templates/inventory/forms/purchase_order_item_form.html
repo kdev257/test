@@ -1,0 +1,41 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+<h3><center class='text-warning'>Enter Purchase Order Quantity</center></h3><br><br><br>
+<div class="container">
+    <div class="row">
+        <div class="col-sm-12">
+            <form method="POST">
+                {% csrf_token %}
+                <form method="POST">
+                    {% csrf_token %}
+                    {{ formset.management_form }}
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Item Name</th>
+                                <th>Quantity</th>
+                                <th>PO Quantity</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form in formset %}
+                                <tr>
+                                    <td>{{ form.id }}</td>
+                                    <td>{{ form.item }}</td>
+                                    <td>{{ form.quantity}}</td>
+                                    <td>{{ form.po_quantity }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    <center>
+                        <button type="submit" class="btn btn-primary">Submit</button>
+                    </center>
+                </form>
+        </div>
+    </div>
+</div>
+{% endblock main-content %}

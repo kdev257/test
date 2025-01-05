@@ -1,0 +1,35 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
+
+
+body{
+    font-family: 'Roboto', sans-serif;
+    font-size :600px;
+    font-weight:bold;
+    /* background-color:rebeccapurple; */
+    color: aqua;
+    display: flex;
+    flex-direction: column;
+    min-height: 100vh;
+    margin: 0; 
+       
+}
+
+form{
+    font-family: inherit;
+    font-size: 20px;
+    
+    
+}
+
+
+button{
+    width: 200px;
+    background-color: aliceblue;
+    color: bisque;
+}
+
+button:hover {
+    background-color: #8b20ef; /* Change to a softer red on hover */
+    transform: scale(1.05);    /* Slightly enlarge the button */
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
+}

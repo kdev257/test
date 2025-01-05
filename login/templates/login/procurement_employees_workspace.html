@@ -1,0 +1,191 @@
+<hr class='text-warning text-lg'> 
+    <center><h3 class='text-warning'>Quotation List</h3></center>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Employee Workspace</title>
+        <!-- Bootstrap 5 CSS -->
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+        <link rel="stylesheet" href="styles.css">
+    </head>
+    <body>
+        <div class="container-fluid">
+            <div class="row vh-100">
+                <!-- Sidebar -->
+                <nav class="col-md-3 col-lg-2 bg-dark text-white d-flex flex-column p-3">
+                    <div class="mb-4">
+                        <img src="logo.png" alt="Company Logo" class="img-fluid mb-3">
+                    </div>
+                    <ul class="nav flex-column">
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'add_supplier' %}" class="nav-link text-white">Add Supplier</a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'quotation_entry' %}" class="nav-link text-white">Quotation Entry</a>
+                        </li>
+                     <li class="nav-item mb-2">
+                            <a href="{% url 'po_entry' %}" class="nav-link text-white">Generate Purchase Order</a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'vehicle_awaiting_unloading' %}" class="nav-link text-white">
+                                Vehicles in Factory  
+                                <span style="color: red;">{{ count }}</span>
+                            </a>
+                        </li>                        
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'mrn_awaiting_stock_location' %}" class="nav-link text-white">MRN pending Stock Location <span class='text-danger'>{{stock_location}}</span></a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            {% comment %} <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Blend Awaiting  Issue <span class='text-danger'>{{blend_awaiting_issue}}</span></a> {% endcomment %}
+                        </li>
+                        {% comment %} <li class="nav-item mb-2">
+                            <a href="{% url 'bottling_requisition_awating_issue' %}" class="nav-link text-white">Bottling_Requisition_Pending_Issue <span class='text-danger'>{{bottling_requisition_awaiting_issue}}</span></a>
+                        </li>                         {% endcomment %}
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-white">Reports</a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-white">Settings</a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="#" class="nav-link text-white">Help</a>
+                        </li>
+                    </ul>
+                </nav>
+    
+                <!-- Main Content -->
+                <main class="col-md-9 col-lg-10 px-md-4">
+                    <header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
+                        <div class="input-group w-50">
+                            <input type="text" class="form-control" placeholder="Search...">
+                        </div>
+                        <div class="d-flex align-items-center">
+                            {% comment %} <img src="profile-pic.jpg" alt="User Profile" class="rounded-circle me-2" height="40"> {% endcomment %}
+                          <h4 class='text-warning'> Welcome Mr/Mrs.  <span class="me-3">{{profile.user_id.first_name}} <span>{{profile.user_id.last_name}}</span></span>to your works space</h4>
+                            {% comment %} <div class="position-relative">
+                                <img src="bell-icon.png" alt="Notifications" height="24">
+                                <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                                    3
+                                </span>
+                            </div> {% endcomment %}
+                        </div>
+                    </header>
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                {% if profile and quote_queryset %}
+                {% comment %} <th>Serial No.</th> {% endcomment %}
+                <th>ID</th>
+                {% comment %} <th>Unit</th> {% endcomment %}
+                <th>Supplier</th>
+                <th>Quotation Number</th>
+                <th>Quotation Date</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Amount</th>                
+                <th>Valid Till</th>
+                <th>Balance Quantity</th>
+                <th>Tax Term</th>
+                <th>Form C</th>
+                <th>Approver</th>
+                <th>Approval Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+                {% for po in quote_queryset %}
+                    <tr>
+                        {% comment %} <td>{{ forloop.counter }}</td> <!-- Serial number --> {% endcomment %}
+                        <td>{{ po.id }}</td>
+                        {% comment %} <td>{{ po.unit }}</td> {% endcomment %}
+                        <td>{{ po.supplier }}</td>
+                        <td>{{ po.quotation_no }}</td>
+                        <td>{{ po.quotation_date }}</td>
+                        {% for item in po.quotation_item.all %}
+                        <td>{{ item.item}}</td>
+                        <td>{{ item.quantity }}</td>
+                        <td>{{ item.unit_rate }}</td>
+                        <td>{{ item.value }}</td> 
+                        {% endfor %}                       
+                        <td>{{ po.valid_till }}</td>
+                        <td>{{ po.balance_quantity }}</td>
+                        <td>{{ po.taxes }}</td>
+                        <td>{{ po.form_c }}</td>
+                        <td>{{ po.approver }}</td>
+                        <td>{{ po.approved }}</td>
+                        <td>
+                            <a href="{% url 'approve_quotation' po.id %}" 
+                               class="btn btn-primary {% if not profile.can_approve or po.approved %}disabled{% endif %}">
+                               {% if po.approved %}
+                                   Approved
+                               {% else %}
+                                   Approve
+                               {% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>
+    <table class="table table-hover">
+        <thead>
+            <tr><center><p><h3 class='text-warning'>Purchase Order List</h3></p></center>
+
+                {% if profile and po_queryset %}
+                {% comment %} <th>Serial No.</th> {% endcomment %}
+                <th>ID</th>
+                {% comment %} <th>Unit</th> {% endcomment %}
+                <th>Supplier</th>
+                <th>PO_Number</th>
+                <th>PO_Date</th>
+                <th>Item</th>
+                <th>Quantity</th>
+                <th>Rate</th>
+                <th>Amount</th>                
+                <th>INR_AMOUNT</th>                
+                <th>Balance Quantity</th>
+                <th>Tax </th>
+                <th>Form C</th>
+                <th>Approver</th>
+                <th>Approval Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+                {% for po in po_queryset %}
+                    <tr>
+                        {% comment %} <td>{{ forloop.counter }}</td> <!-- Serial number --> {% endcomment %}
+                        <td>{{ po.id }}</td>
+                        {% comment %} <td>{{ po.unit }}</td> {% endcomment %}
+                        <td>{{ po.quotation.supplier }}</td>
+                        <td>{{ po.po_number }}</td>
+                        <td>{{ po.po_date }}</td>
+                        <td>{{ po.quotation.item }}</td>
+                        <td>{{ po.quantity }}</td>
+                        <td>{{ po.quotation.unit_rate }}</td>
+                        <td>{{ po.po_value }}</td>                        
+                        <td>{{ po.inr_value }}</td>                        
+                        <td>{{ po.balance_quantity }}</td>                      
+                        <td>{{ po.igst }}</td>
+                        <td>{{ po.quotation.form_c }}</td>
+                        <td>{{ po.approver }}</td>
+                        <td>{{ po.approved }}</td>
+                        <td>
+                            <a href="{% url 'approve_po' po.id %}" 
+                               class="btn btn-primary {% if not profile.can_approve or po.approved %}disabled{% endif %}">
+                               {% if po.approved %}
+                                   Approved
+                               {% else %}
+                                   Approve
+                               {% endif %}
+                            </a>
+                        </td>
+                    </tr>
+                {% endfor %}
+            {% endif %}
+        </tbody>
+    </table>

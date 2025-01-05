@@ -1,0 +1,67 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+  
+  
+ 
+  <!-- Display a table with serial numbers -->
+  <center><h3>Purchase Orders List</h3></center>
+  <table class="table">
+    <thead>
+      <tr>
+        <th>Serial No.</th>
+        <th>ID</th>
+        <th>Unit</th>
+        <th>Supplier</th>
+        <th>PO Number</th>
+        <th>PO Date</th>
+        <th>Item</th>
+        <th>Quantity</th>
+        <th>Rate</th>
+        <th>Amount</th>
+        <th>INR_Amount</th>
+        <th>Tax</th>
+        <th>Approval Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for po in po_list %}
+      {% for item in item  %}
+        <tr>
+          <td>{{ forloop.counter }}</td> <!-- Serial number -->
+          <td>{{ po.id }}</td>
+          <td>{{ po.unit}}</td>
+          <td>{{ po.quotation.supplier }}</td>
+          <td>{{ po.po_number }}</td>
+          <td>{{ po.po_date }}</td>
+          <td>{{ item.lcr.item }}</td>
+          <td>{{ po.quantity }}</td>
+          <td>{{ po.quotation.unit_rate }}</td>
+          <td>{{ po.po_value}}</td>
+          <td>{{ po.inr_value}}</td>
+          {% if po.vat != 0 %}
+          <td>{{ po.vat}}</td>
+          {% endif %}
+          {% if po.cst != 0 %}
+          <td>{{ po.cst}}</td>
+          {% endif %}
+          {% if po.igst != 0 %}
+          <td>{{ po.igst}}</td>
+          {% endif %}
+          <td>{{ po.approved }}</td>
+          <td>
+            <a href="{% url 'approve_po' po.id %}" 
+               class="btn btn-primary {% if po.approved %}disabled{% endif %}">
+               {% if po.approved %}
+                   Approved
+               {% else %}
+                   Approve
+               {% endif %}
+            </a>
+        </td>
+        </tr>
+        {% endfor %}
+      {% endfor %}
+    </tbody>
+  </table>
+{% endblock %}

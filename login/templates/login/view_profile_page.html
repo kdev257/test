@@ -1,0 +1,184 @@
+{% extends 'inventory/index.html' %}   
+{% load static %}
+{% block navbar %}{% endblock navbar %}
+{% block main-content %}
+<section style="background-color: #eee;">
+    <div class="container py-5">
+      <div class="row">
+        <div class="col">
+          <nav aria-label="breadcrumb" class="bg-light rounded-3 p-3 mb-4">
+            <ol class="breadcrumb mb-0">
+              <li class="breadcrumb-item"><a href="#">Home</a></li>
+              <li class="breadcrumb-item"><a href="#">User</a></li>
+              <li class="breadcrumb-item active" aria-current="page"><a href="">Update Profile</a> </li>
+              {% comment %} <li class="breadcrumb-item active" aria-current="page"><a href="{% url 'profile' owner.flat_owner_id  %}">Bills</a> </li> {% endcomment %}
+              <li class="breadcrumb-item active"aria-current="page">
+                <a href="#">Maintenace Service</a> </li>
+              {% comment %} <li class="breadcrumb-item active"aria-current="page">
+                <a href="{% url 'show_request_status' %}">Maintenace Request Status</a> </li> {% endcomment %}
+            </ol>
+          </nav>
+        </div>
+      </div>
+       <div class="row">
+        <div class="col-lg-4">
+          <div class="card mb-4">
+            <div class="card-body text-center">
+               {% if owner.flat_owner.image.url is not None %}
+                 <img height='200px' src="{{owner.flat_owner.image.url}}" alt="avatar"class="rounded-circle" style="width: 200px;">
+                {% else %}
+                 <img height='200px' src="{% static 'login/images/owner.jpg '%}" alt="avatar"
+                  class="rounded-circle" style="width: 200px;">
+                 {% endif %}
+              <h5 class="my-3 text-warning">{{profile.supplier_name}} </h5>
+              <p class="text-info mb-1 ">GST Registraion:{{profile.gst_registration_no}}</p>
+              <p class="text-info mb-1 ">PAN No:{{profile.pan_no}}</p>              
+            </div>
+          </div>         
+        </div>
+        <div class="col-lg-8">
+          <div class="card mb-4">
+            <div class="card-body">
+              <div class="row">
+                <div class="col-sm-3">
+                  <p class="mb-0">Full Name</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.supplier_name}}</p>
+                </div>  
+              </div>
+              <hr>
+              <div class="row">
+                <div class="col-sm-3">
+                  <p class="mb-0">EMAIL</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.user.email}}</p>
+                </div>
+              </div>
+              <hr>
+              <div class="row">
+                <div class="col-sm-3">
+                  <p class="mb-0">Phone</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.phone}}</p>
+                </div>
+              </div>
+              <hr>
+              <div class="row">
+                <div class="col-sm-3">
+                  <p class="mb-0">Address</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.address}}</p>
+                </div>
+              </div>
+              <hr>
+              <div class="row">
+                <div class="col-sm-3">
+                  <p class="mb-0">City</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.city}}</p>
+                </div>
+                <hr>
+                <div class="col-sm-3">
+                  <p class="mb-0">Bank Name</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.bank_name}}-{{profile.ifsc_code}}</p>
+                </div>
+                <hr>
+                <div class="col-sm-3">
+                  <p class="mb-0">State</p>
+                </div>
+                <div class="col-sm-9">
+                  <p class="text-muted mb-0">{{profile.state}}</p>
+                  <hr>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+</section>
+{% comment %} <div class='container'>
+  <div class='row'>
+    <div class= 'col-sm-12'>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <h1 class='text-warning'>Service Requests Details</h1>
+            <th scope="col">Id</th>
+            <th scope="col">Request_No</th>                        
+            <th scope="col">Date</th>
+            <th scope="col">Category</th>
+            <th scope="col">Descipription.</th>
+            <th scope="col">Status</th>
+            <th scope="col">Assigned</th>
+            <th scope="col">Update</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {% for sr in sr %}
+            <th scope="row">{{sr.id}}</th>
+            <td>{{sr.request_no}}</td>
+            <td>{{sr.request_date}}</td>
+            <td>{{sr.request_cat}}</td>
+            <td>{{sr.request_detail}}</td>
+            <td>{{sr.request_status}}</td>
+            <td>{{sr.assigned_to}}</td>
+            <td>{{sr.uddate}}</td>
+            <td><a href="#"><button type="submit" class="btn btn-primary">Remind</button></a> </td>
+            <td><a href="#"><button type="submit" class="btn btn-primary">close</button></a> </td>
+          </tr>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      </table>
+      <table class="table table-striped">
+        <thead>
+          <tr>
+            <h1 class='text-warning'>Maintenance Bill Details</h1>
+            <th scope="col">Id</th>
+            <th scope="col">Period</th>                        
+            <th scope="col">Year</th>
+            <th scope="col">Bill No.</th>
+            <th scope="col">Bill Date</th>
+            <th scope="col">Amount</th>
+            <th scope="col">Status</th>
+            <th scope="col">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            {% for b in bill %}
+            <th scope="row">{{b.id}}</th>
+            <td>{{b.period}}</td>
+            <td>{{b.year}}</td>
+            <td>{{b.bill_no}}</td>
+            <td>{{b.bill_date}}</td>
+            <td>{{b.bill_amount}}</td>
+            <td>{{b.paid}}</td>
+            <td><a href="{% url 'payment' b.id %}"><button type="submit" class="btn btn-primary">Pay</button></a> </td>
+          </tr>
+          {% endfor %}
+        </tr>
+      </thead>
+      <tbody>
+      </table>
+    </div>
+  </div>
+</div> {% endcomment %}
+
+{% endblock main-content %}

@@ -1,0 +1,109 @@
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Create Blend</h3></center>
+
+<div class="container-fluid">
+    <div class="row vh-100">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 bg-dark text-white d-flex flex-column p-3">
+            <div class="mb-4">
+                <img src="logo.png" alt="Company Logo" class="img-fluid mb-3">
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item mb-2">
+                    {% comment %} <a href="{% url 'create_blend' %}" class="nav-link text-white">Create Blend </a> {% endcomment %}
+                {% comment %} </li> {% endcomment %}
+                <li class="nav-item mb-2">
+                    {% comment %} <a href="{% url 'blend_awaiting_processing' %}" class="nav-link text-white">Process Blend<span class='text-danger'> ({{issued_to_blend}})</span></a> {% endcomment %}
+                </li>
+                {% comment %} <li class="nav-item mb-2">
+                    <a href="{% url 'blend_awaiting_transfer' %}"class="nav-link text-white">Transfer to Holding Tank<span class='text-danger'> ({{transfer_blend}})</span></a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'receive_blend' %}"class="nav-link text-white">Receive in Holding Tank<span class='text-danger'> ({{receive_blend}})</span></a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'blend_awaiting_bottling' %}"class="nav-link text-white">Blend Awaiting Bottling<span class='text-danger'> ({{awaiting_bottling}})</span></a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'blend_requisition' %}"class="nav-link text-white">Create Blend Requisition<span class='text-danger'></span></a>
+                </li>                
+                <li class="nav-item mb-2">
+                    <a href="#"class="nav-link text-white">Create Bottling Requisition<span class='text-danger'></span></a>
+                </li>                
+                
+                <li class="nav-item mb-2">
+                    <a href="{% url 'receive_blend_for_bottling' %}"class="nav-link text-white">Receive Blend for Bottling<span class='text-danger'></span></a>
+                </li>                
+                <li class="nav-item mb-2">
+                    <a href="{% url 'finished_goods' %}"class="nav-link text-white">Enter Day Report<span class='text-danger'></span></a>
+                </li>                 {% endcomment %}
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Tasks</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Reports</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Settings</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Help</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-9 col-lg-10 px-md-4">
+            <header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
+                <div class="input-group w-50">
+                    <input type="text" class="form-control" placeholder="Search...">
+                </div>
+                <div class="d-flex align-items-center">
+                    <h4 class='text-warning'> Welcome Mr/Mrs.  
+                        <span class="me-3">{{ profile.user_id.first_name }} <span>{{ profile.user_id.last_name }}</span></span>
+                    </h4>
+                </div>
+            </header>
+
+            <!-- Gate Entry Table -->
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Batch_Number</th>
+                        <th>Production_Date</th>
+                        <th>Unit</th>
+                        <th>Brand</th>
+                        <th>Batch Quantity</th>
+                        <th>UOM</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if blend %}
+                        {% for ge in blend %}
+                            <tr>
+                                <td>{{ ge.id }}</td>
+                                <td>{{ ge.batch_number }}</td>
+                                <td>{{ ge.production_date }}</td>
+                                <td>{{ ge.unit }}</td>
+                                <td>{{ ge.brand }}</td>
+                                <td>{{ ge.batch_quantity }}</td>
+                                <td>{{ ge.uom }}</td>                                
+                                <td>
+                                    <a href="{% url 'material_requisition' ge.id %}">
+                                        <button class='button-primary'>Material Requisition</button>
+                                    </a>
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="13">No Blend available.</td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </main>
+    </div>
+</div>

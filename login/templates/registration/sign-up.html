@@ -1,0 +1,30 @@
+{% extends 'inventory/index.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+{% block title %}{% endblock title %}
+{% block main-content %}
+<div class="container">
+    <div class="row">
+        <div class="col-sm-6"><br><br>
+            <form method="POST">
+                {% csrf_token %}
+                {{form|crispy}}
+                {% comment %} {% for fm in form %}
+                {{fm.label_tag}}{{fm}}{{form.errors|striptags}} 
+                {% endfor %} {% endcomment %}
+            <div>
+           <div class="sm-col-12 text-center">
+           <button type="submit" class="btn btn-primary">Submit</button>
+           {% comment %} <a href="{% url 'user_login' %}" class='btn btn-primary'>Login</a>                             {% endcomment %}
+         </div>                        
+        </div>
+       </form>
+                                   
+            <br><br><br><br><br> 
+        </div>
+    </div>
+</div>
+  
+{% endblock main-content %}
+    
+    
