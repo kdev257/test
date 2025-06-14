@@ -1,0 +1,91 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<div class="container">
+    <center><h2 class="text-warning">Bank Payment Voucher</h2></center>
+    
+    <form method="post" class="form-horizontal" id="bank-payment-form">
+        {% csrf_token %}
+
+        <fieldset class="form-group">
+            <center><legend class="text-primary">Bank Details</legend></center>
+            <div class="row">
+                <div class="col-md-6">{{ form.account_chart|as_crispy_field }}</div>
+                <div class="col-md-6">{{ form.transaction_amount|as_crispy_field }}</div>
+            </div>
+            
+        </fieldset>
+
+        <fieldset class="form-group" id="transaction-entries">
+            <legend>Transaction Details</legend>
+            {{ formset.management_form }}
+            {% for subform in formset %}
+                <div class="entry row">
+                    <div class="col-md-5">{{ subform.other_account|as_crispy_field }}</div>
+                    <div class="col-md-5">{{ subform.debit_amount|as_crispy_field }}</div>
+                    <div class="col-md-2">
+                        <button type="button" class="btn btn-danger remove-entry">X</button>
+                    </div>
+                </div>
+            {% endfor %}
+        </fieldset>
+
+        <div class="d-flex gap-3 mt-3 justify-content-center">
+            <button type="submit" class="btn btn-primary" id="save-btn" disabled>Save</button>
+            <button type="button" class="btn btn-success" id="add-more">Add More</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        function updateSaveButton() {
+            let transactionAmount = parseFloat(document.querySelector("input[name='transaction_amount']").value) || 0;
+            let totalAmount = 0;
+    
+            document.querySelectorAll("input[name$='-debit_amount']").forEach(input => {
+                totalAmount += parseFloat(input.value) || 0;
+            });
+    
+            let saveButton = document.getElementById('save-btn');
+            saveButton.disabled = totalAmount !== transactionAmount;
+        }
+    
+        function addRemoveEntryListeners() {
+            document.querySelectorAll(".remove-entry").forEach(button => {
+                button.addEventListener("click", function () {
+                    this.closest(".entry").remove();
+                    updateSaveButton();
+                });
+            });
+    
+            document.querySelectorAll("input[name$='-debit_amount']").forEach(input => {
+                input.removeEventListener("input", updateSaveButton);
+                input.addEventListener("input", updateSaveButton);
+            });
+        }
+    
+        document.getElementById('add-more').addEventListener('click', function () {
+            let formsetContainer = document.getElementById("transaction-entries");
+            let totalForms = document.querySelectorAll(".entry").length;
+            let emptyForm = "{{ formset.empty_form|escapejs }}".replace(/__prefix__/g, totalForms);
+    
+            let div = document.createElement("div");
+            div.classList.add("entry", "row");
+            div.innerHTML = emptyForm;
+            formsetContainer.appendChild(div);
+    
+            addRemoveEntryListeners();
+            updateSaveButton();
+        });
+    
+        document.querySelector("input[name='transaction_amount']").addEventListener('input', updateSaveButton);
+    
+        addRemoveEntryListeners();
+        updateSaveButton(); // Initial check
+    });
+    </script>
+
+{% endblock %}

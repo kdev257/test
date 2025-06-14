@@ -1,0 +1,168 @@
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Finanace-Tax WorkSpace</h3></center>
+
+<div class="container-fluid">
+    <div class="row vh-100">
+        <!-- Sidebar -->
+        <nav class="col-md-3 col-lg-2 bg-dark text-white d-flex flex-column p-3">
+            <div class="mb-4">
+                <img src="logo.png" alt="Company Logo" class="img-fluid mb-3">
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item mb-2">
+                    <a href="{% url 'service_order_create' %}" class="nav-link text-white">Create Service Order <span style="color: red;"></span></a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'service_order_list' %}" class="nav-link text-white">Service Order List</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'service_quotation_list' %}" class="nav-link text-white">Service Quotation List</a>
+                </li>
+                
+                {% comment %} <li class="nav-item mb-2"> 
+                    <a href="{% url 'bank_payment_view' %}" class="nav-link text-white">Create Bank Payment</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'bank_receipt_view' %}" class="nav-link text-white">Create Bank Receipt</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Create Journal Entry<a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Cash Payment<a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Cash Receipt<a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Debit Note<a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Credit Note<a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="{% url 'update_account_chart_orm' %}" class="nav-link text-white">Update Account Chart</a>
+                </li> {% endcomment %}
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Tasks</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Reports</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Settings</a>
+                </li>
+                <li class="nav-item mb-2">
+                    <a href="#" class="nav-link text-white">Help</a>
+                </li>
+            </ul>
+        </nav>
+
+        <!-- Main Content -->
+        <main class="col-md-9 col-lg-10 px-md-4">
+            <header class="d-flex justify-content-between align-items-center py-3 mb-4 border-bottom">
+                <div class="input-group w-50">
+                    <input type="text" class="form-control" placeholder="Search...">
+                </div>
+                <div class="d-flex align-items-center">
+                    <h4 class='text-warning'> Welcome Mr/Ms.  
+                        <span class="me-3">{{ profile.user_id.first_name }} <span>{{ profile.user_id.last_name }}</span></span>
+                    </h4>
+                </div>
+            </header>
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Service Order Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    {% comment %} <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> {% endcomment %}
+</head> 
+<body class="bg-light">
+    <div class="container py-5">
+        <center><h1 class="mb-4 text-warning">📊 Service Order Dashboard</h1><br></center>  
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary h-100">
+                    <div class="card-body">
+                       <center><h5 class="card-title">Total Orders</h5>
+                       <h2 class='text-danger'>{{total_orders}}</h2></center>                        
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning h-100">
+                    <div class="card-body">
+                        <center><h5 class="card-title">Pending Approvals</h5>
+                        <h2  class='text-danger'>{{ pending_orders }}</h2></center>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success h-100">
+                    <div class="card-body">
+                      <center><h5 class="card-title">Approved Orders</h5>
+                        <h2 class='text-danger'>{{approved_orders}}</h2></center>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-secondary h-100">
+                    <div class="card-body">
+                       <center><h5 class="card-title">Closed Orders</h5>
+                        <h2 class='text-danger'>{{closed_orders}}</h2></center>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <h4 class="mb-3">Order Status Distribution</h4>
+       <center><div style="width: 300px;">
+        <canvas id="statusChart"></canvas>
+        </div></center>
+    </div>
+    
+    <script>
+    const ctx = document.getElementById('statusChart').getContext('2d');
+    let chartInstance = null;
+
+    function renderChart(type) {
+        if (chartInstance) {
+            chartInstance.destroy();
+        }
+
+        chartInstance = new Chart(ctx, {
+            type: type,
+            data: {
+                labels: ['Pending Approval', 'Approved', 'Closed'],
+                datasets: [{
+                    label: 'Service Orders',
+                    data: [{{ pending_orders }}, {{ approved_orders }}, {{ closed_orders }}],
+                    backgroundColor: [
+                        'rgb(255, 193, 7)',
+                        'rgb(25, 135, 84)',
+                        'rgb(108, 117, 125)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: type === 'bar' ? {
+                    y: { beginAtZero: true }
+                } : {}
+            }
+        });
+    }
+
+    // Initial render
+    renderChart('doughnut');
+
+    // On change event
+    document.getElementById('chartType').addEventListener('change', function () {
+        renderChart(this.value);
+    });
+</script>
+    
+    </body>            

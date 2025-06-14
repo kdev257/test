@@ -8,16 +8,21 @@ django.setup()
 from inventory.models import Purchase_Order ,Po_Lcr_Join,Service,Gate_Entry,Material_Receipt_Note,Quotation
 from inventory.forms import GenerateMrnForm,Po_Lcr_Join
 from masters.models import Custom_Duty,User,State_Excise_taxes_On_Goods,State_Tax_on_Sale_Of_Goods,Gst_On_Goods,Account_Chart,DOA,User,User_Roles,Item
-from stock.models import Stock_Entry,Blend
+from stock.models import Stock_Entry,Blend,Stock_Ledger,Stock_Entry
 from django.db.models import Q 
 from django.core.exceptions import ValidationError
-from .functions import update_stock_location
+from .functions import update_stock_location,update_stock_ledger
 from accounts.models import Inv_Transaction
 from django.db import transaction as db_transaction
 from inventory.views import generate_mrn
 from django.http import request
+from icecream import ic
+from stock.models import Stock_Entry,Stock_Ledger
 
-generate_mrn(10,user=request.user)
+# id = Stock_Entry.objects.get(id=14)
+stock_ledger =update_stock_ledger(id=14,model_class1=Stock_Entry, model_class2=Stock_Ledger)
+ic(stock_ledger)
+# generate_mrn(10,user=request.user)
 
 # update_stock_location(id=1,receipt_quantity=3000,receipt_value=30000,issue_quantity=0,issue_value=0)
 

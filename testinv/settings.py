@@ -47,7 +47,9 @@ INSTALLED_APPS = [
     'stock',
     'production',
     'accounts',
-     'masters',
+    'masters',
+    'sale',
+    'service',
     
 ]
 

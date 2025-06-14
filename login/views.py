@@ -2,14 +2,18 @@ from django.shortcuts import render,redirect
 from django.http import HttpResponseRedirect,HttpResponse
 from django.contrib.auth import login,logout,authenticate
 from masters.models import User,User_Roles,Supplier_Profile,User_Roles
-# from stock.models import Blend,Material_Requisition
-# from production.models import Blend_WIP,Finished_Blend,Receive_Blend_For_Bottling
+from stock.models import Blend,Material_Requisition
+from sale.models import Permit
+from production.models import Blend_WIP
+from service.models import Service_Quotation,Service_Quotation_Items,Service_Order,Service_Order_Items
 from django.db import transaction as db_transaction
 from django.contrib import messages
 from inventory.forms import *
 from inventory.models import Mrn_Items
-from .forms import UserRoleForm , AuthenticationForm, SupplierProfileForm, Registrationform
+from .forms import UserRoleForm , CustomAuthenticationForm, SupplierProfileForm, Registrationform
 from django.db.models import Q
+from icecream import ic
+from django.contrib.auth.decorators import login_required
 
 
 # Create your views here.
@@ -17,7 +21,7 @@ from django.db.models import Q
 def userloginview(request):
     with db_transaction.atomic():
         if request.method=='POST':
-            fm = AuthenticationForm(request=request,data=request.POST)
+            fm = CustomAuthenticationForm(request=request,data=request.POST)
             if fm.is_valid():
                 name = fm.cleaned_data['username']
                 pw =fm.cleaned_data['password']
@@ -25,12 +29,13 @@ def userloginview(request):
                 if user is not None:
                     login(request,user)
                     messages.success(request,(f'Login Successful...Welcome {user}'))
-                    if user.user_type == 'Supplier':
+                    if user.user_type == 'Goods_Supplier' or user.user_type == 'Service_Provider' or user.user_type == 'Transporter':
                         supplier=Supplier_Profile.objects.filter(user=user).exists()
                         if supplier:
                             return redirect('view_supplier_profile')
-                        else:
-                            return redirect('supplier_details')
+                        else:  
+                            pass                          
+                            return redirect('supplier_profile')
                     elif user.user_type == 'Employee':
                         emp = User_Roles.objects.filter(user_id=user).exists()
                         if emp:
@@ -39,7 +44,7 @@ def userloginview(request):
                             return redirect('user_roles')  
                     
         else:
-            fm=AuthenticationForm()
+            fm=CustomAuthenticationForm()
         return render(request,'registration/login.html',{'form':fm}) 
 
 def supplier_profile(request):
@@ -48,10 +53,13 @@ def supplier_profile(request):
             form = SupplierProfileForm(request.POST)
             if form.is_valid():
                 instance = form.save(commit=False)
-                instance.created_by= User.objects.get(id=request.user.id)
-                instance.user = User.objects.get(id=request.user.id)
-                instance.save()
-            return redirect('view_supplier_profile')
+                instance.created_by= User.objects.get(id=request.user.id)                
+                instance.save()                
+                messages.success(request,'Your profile has been created successfully')
+                return redirect('view_supplier_profile')
+            else:
+                messages.error(request,'Your profile could not be created, pls try again or contact admin') 
+           
         else:
             form = SupplierProfileForm()
         return render(request,'login/supplierprofile.html',{'form':form})    
@@ -81,17 +89,27 @@ def employee_workspace_page(request):
         awaiting_quality_queryset = Gate_Entry.objects.filter(is_quality_ok=False).count()
         mrn_queryset = Gate_Entry.objects.filter(is_unloaded=True,is_quality_ok=True,is_mrn_made=False)
         mrn_count = Gate_Entry.objects.filter(is_unloaded=True,is_quality_ok=True,is_mrn_made=False).count()
-        mrn_awaiting_stock_location = Mrn_Items.objects.filter(stock_location__isnull = True).count()        
-        # blend_queryset = Blend.objects.filter(is_requistioned = False)
-        # blend_awaiting_issue = Material_Requisition.objects.filter(issue_slip__isnull = True).count()
-        # issued_to_blend = Blend.objects.filter(is_processed = False).count()
-        # transfer_blend = Blend_WIP.objects.filter(is_issued=False,transaction_type=11).count()
-        # receive_blend = Blend_WIP.objects.filter(is_issued= True,transaction_type = 12).count()
-        # blend_awaiting_bottling = Finished_Blend.objects.filter(is_issued = False,transaction_type=12).count()
-        # bottling_requisition_awaiting_issue = Material_Requisition.objects.filter(issue_slip__isnull= True).count() 
-        # transfer_for_bottling = Receive_Blend_For_Bottling.objects.filter(is_stock_updated=False,unit=unit).count()       
-        
-        
+        mrn_awaiting_stock_location = Mrn_Items.objects.filter(stock_location__isnull = True).count()
+        #blend created by user        
+        blend_produced_pending_wg_requisition = Blend.objects.filter(status = '100') #Awaiting requisition of WG
+        blend_produced_pending_wg_requisition_count = Blend.objects.filter(status = '100').count() #Awaiting requisition of WG
+        reqisition_made_pending_wg_issue = Blend.objects.filter(status = '200').count() #WG requisition made, pending issue
+        wg_issued_pending_processing = Blend.objects.filter(status = '300').count()
+        blend_processed_pending_transfer = Blend.objects.filter(status = '400').count()
+        finished_blend_pending_bottling_requistion = Blend.objects.filter(status = '500').count()
+        bottling_requisition_made_pending_issue = Blend.objects.filter(status = '600').count()
+        dg_issued_pending_bottling = Blend.objects.filter(status = '700').count()
+        fg_pending_transfer_fg_area = Blend.objects.filter(status = '800').count()
+        blend_bottled = Blend.objects.filter(status=900).count()
+        #sale View
+        pending_permit_count = Permit.objects.filter(status=100).count() 
+        total_quotations = Service_Quotation.objects.filter(Q(created_by=request.user) | Q(approver=request.user)).count()
+        total_orders = Service_Order.objects.filter(Q(created_by=request.user) | Q(approver=request.user)).count()
+        pending_orders = Service_Order.objects.filter(Q(created_by=request.user)  & Q(status='Pending') | Q(approver=request.user) & Q(status='Pending')).count()
+        approved_orders = Service_Order.objects.filter(Q(created_by=request.user)  &  Q(status='Approved') | Q(approver=request.user) & Q(status='Approved')).count()
+        ic(approved_orders)
+        closed_orders = Service_Order.objects.filter(Q(created_by=request.user) & Q(status='Closed') | Q(approver=request.user) & Q(status='Closed')).count()
+
     else:
         quote_queryset = None
         po_queryset = None
@@ -101,15 +119,21 @@ def employee_workspace_page(request):
         awaiting_quality_queryset = None
         mrn_count = None
         mrn_awaiting_stock_location = None
-        # blend_queryset =None
-        # blend_awaiting_issue = None
-        # issued_to_blend = None
-        # transfer_blend = None
-        # receive_blend = None
-        # blend_awaiting_bottling = None
-        # bottling_requisition_awaiting_issue = None
-        # transfer_for_bottling = None
-        
+        blend_produced_pending_wg_requisition_count =None
+        reqisition_made_pending_wg_issue = None
+        wg_issued_pending_processing = None
+        blend_processed_pending_transfer = None
+        finished_blend_pending_bottling_requistion = None
+        bottling_requisition_made_pending_issue = None
+        dg_issued_pending_bottling = None
+        fg_pending_transfer_fg_area = None
+        blend_bottled = None
+        pending_permit_count = None
+        total_quotations = None
+        total_orders = None,
+        pending_orders = None,
+        approved_orders = None,
+        closed_orders = None
         
 
     context = {
@@ -123,14 +147,27 @@ def employee_workspace_page(request):
         "mrn_count" :mrn_count,
         'mrn_queryset': mrn_queryset,
         'stock_location': mrn_awaiting_stock_location,
-        # 'blend':blend_queryset,
-        # 'blend_awaiting_issue': blend_awaiting_issue,
-        # 'issued_to_blend' : issued_to_blend,
-        # 'transfer_blend' : transfer_blend,
-        # 'receive_blend' : receive_blend,
-        # 'awaiting_bottling': blend_awaiting_bottling,
-        # 'bottling_requisition_awaiting_issue': bottling_requisition_awaiting_issue,
-        # 'transfer_for_bottling':transfer_for_bottling
+        'blend' : blend_produced_pending_wg_requisition,
+        'blend_count':blend_produced_pending_wg_requisition_count,        
+        'blend_awaiting_issue':reqisition_made_pending_wg_issue,
+        'issued_to_blend' : wg_issued_pending_processing,
+        'transfer_blend' : blend_processed_pending_transfer,
+        'blend_pending_bottling_requisition':finished_blend_pending_bottling_requistion,
+        'bottling_requisition_made':bottling_requisition_made_pending_issue,
+        'dg_issued_pending_bottling':dg_issued_pending_bottling,
+        'fg_pending_transfer_to_fg_area':fg_pending_transfer_fg_area,
+        'blend_bottled':blend_bottled,
+        'permit_count': pending_permit_count,
+        'total_quotations': total_quotations,
+        'total_orders': total_orders,
+        'pending_orders': pending_orders,
+        'approved_orders': approved_orders,
+        'closed_orders': closed_orders,
+    
+        
+        
+                
+        
     }
     
     return render(request, 'login/employee_workspace.html', context)
@@ -206,4 +243,4 @@ def suppiler_details(request):
 
 def userlogout(request):
     logout(request)
-    return redirect('landingpage')
+    return redirect('/')

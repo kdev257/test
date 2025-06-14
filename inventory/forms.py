@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError
 class SupplierForm(forms.ModelForm):
     class Meta:
         model = Supplier
-        fields = 'unit' ,'supplier_name','assessee_type','gstin','supplier_state','account'
+        fields = 'supplier_name','assessee_type','gstin','supplier_state','account'
         
 
 class FreightForm(forms.ModelForm):
@@ -41,9 +41,11 @@ class QuotationForm(forms.ModelForm):
                
             except User_Roles.DoesNotExist:
                 user_unit = None
-            self.fields['supplier'].queryset = Supplier.objects.filter(
-                unit=user_unit,                    
-            )
+            # if user and self.instance.supplier.location == "Overseas":
+            #     self.fields['inland_haulage'].queryset = Supplier.objects.filter()
+            # else:
+            #     self.fields.pop('inland_haulage')  # Remove the inland_haulage field if not needed
+            # #     unit=user_unit,)
 
 class AddItemForm(forms.Form):
     add_item = forms.ChoiceField(
@@ -57,13 +59,28 @@ class QuotationItemsForm(forms.ModelForm):
     class Meta:
         model = Quotation_Items
         fields = 'quotation','item','quantity','unit_rate',
+    
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(QuotationItemsForm, self).__init__(*args, **kwargs)
         
+        if user:
+            try:
+                user_unit = user.user_roles.unit
+               
+            except User_Roles.DoesNotExist:
+                user_unit = None
+            
+            self.fields['quotation'].queryset = Quotation.objects.filter(unit=user_unit,approved=False)
+        
+            
 class QuotationItemEditForm(forms.ModelForm):
     po_quantity = forms.DecimalField(
         max_digits=20,
         decimal_places=2,
         required=False,
-        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter PO Quantity'})
+        widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter PO Quantity'}),
+        
     )
 
     class Meta:
@@ -80,11 +97,21 @@ class QuotationItemEditForm(forms.ModelForm):
 class PurchaseOrderForm(forms.ModelForm):
     class Meta:
         model = Purchase_Order
-        fields = ['business','transaction_type','quotation','freight']
+        fields = ['business', 'transaction_type', 'quotation', 'freight', 'service']
 
     def __init__(self, *args, **kwargs):
-        user = kwargs.pop('user', None)
+        user = kwargs.pop('user', None)        
+        quotation = kwargs.pop('quotation', None)  # Get the Quotation instance
         super(PurchaseOrderForm, self).__init__(*args, **kwargs)
+
+        if quotation:
+            self.fields['quotation'].initial = quotation
+
+            # Example: hide 'service' field for overseas suppliers
+            if quotation.supplier.location != 'Overseas':                
+                self.fields.pop('service', None)
+            if quotation.delivery_terms != "Ex-Factory":
+                self.fields.pop('freight', None)
 
         if user:
             try:
@@ -92,21 +119,14 @@ class PurchaseOrderForm(forms.ModelForm):
             except User_Roles.DoesNotExist:
                 user_unit = None
 
-            current_date = timezone.now().date()
-            self.fields['quotation'].queryset = Quotation.objects.filter(
-                approved=True,
-                unit=user_unit,
-                valid_till__gte=current_date,   # Ensure the quotation is still valid
-                balance_quantity__gt=0,          # Ensure there is remaining quantity
-            
-            )            
-            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=2)                     
-
+        self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=2)
+        self.fields['freight'].queryset = Freight.objects.filter(unit=user_unit)
+        
 
 class PurchaseOrderItemForm(forms.ModelForm):
     class Meta: 
         model = Purchase_Order_Items 
-        fields = ['quantity' ]  
+        fields = ['balance_quantity' ]  
         
 
 
@@ -188,7 +208,7 @@ class GateEntryForm(forms.ModelForm):
                 unit = user_unit
                 
             )
-            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=4)
+            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=3)
 class GenerateMrnForm(forms.ModelForm):
     class Meta:
         model = Material_Receipt_Note
@@ -207,7 +227,7 @@ class GenerateMrnForm(forms.ModelForm):
                  user_unit = None
 
              # Filtering the Purchase Orders based on user unit and approval status
-            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=5)
+            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=6)
        
 
 class QualityCheckForm(forms.ModelForm):

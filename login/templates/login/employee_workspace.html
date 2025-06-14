@@ -16,10 +16,16 @@
                             {% include "login/quality_employees_workspace.html" %}
                         {% endif %}                    
                         {% if profile.department == 'Finance' %}
-                            {% include "login/finance_employees_workspace.html" %}
+                            {% include "login/finance_control_employees_workspace.html" %}
+                        {% endif %}                    
+                        {% if profile.department == 'Finance_Tax' %}
+                            {% include "login/finance_tax_employees_workspace.html" %}
                         {% endif %}                    
                         {% if profile.department == 'Manufacturing' %}
                             {% include "login/manufacturing_employees_workspace.html" %}
+                        {% endif %}                    
+                        {% if profile.department == 'Dispatch' %}
+                            {% include "login/dispatch_employees_workspace.html" %}
                         {% endif %}                    
                 {% endblock main_content %}
     

@@ -1,0 +1,59 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Receive Blend in Holding Tank</h3></center>
+
+<!-- Search form -->
+<form method="GET" action="{% url 'blend_awaiting_processing' %}" class="mb-3">
+    <div class="input-group w-50">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>                  
+            <th>Blend_No</th>
+            <th>Blend_Date</th>
+            <th>Unit</th>
+            <th>Brand</th>
+            <th>Stock Location</th>
+            <th>Blend Quantity</th>
+            <th>Blend Value</th>
+            <th>Average Cost</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if receive_blend %}
+            {% comment %} {% for tb in receive_blend %} {% endcomment %}
+                <tr>
+                    <td>{{ receive_blend.id }}</td>                  
+                    <td>{{ receive_blend.blend }}</td>
+                    <td>{{ receive_blend.transaction_date }}</td>
+                    <td>{{ receive_blend.unit }}</td>                    
+                    <td>{{ receive_blend.blend.brand }}</td>                    
+                    <td>{{ receive_blend.stock_location }}</td>
+                    {% comment %} <td>{{ tb.blend_uom }}</td> {% endcomment %}
+                    <td>{{ receive_blend.blend_quantity}}</td>
+                    <td>{{ receive_blend.blend_value}}</td>
+                    <td>{{ receive_blend.average_cost}}</td>
+                    
+                    <td>
+                        <a href="{% url 'finished_blend' receive_blend.id  %}">
+                            <button class='btn btn-primary'>Receive</button>
+                        </a>
+                    </td>
+                </tr>
+            {% comment %} {% endfor %} {% endcomment %}
+        {% else %}
+            <tr>
+                <td colspan="13">No records found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock main-content %}

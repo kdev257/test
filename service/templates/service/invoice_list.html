@@ -1,0 +1,18 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Service Invoice{% endblock %}
+{% block main-content %}
+
+<h1>Service Invoice</h1>
+
+<ul>
+  {% for invoice in invoices %}
+    <li>{{ invoice.transaction_number }} - {{ invoice.order.quotation.supplier }}
+      <a href="{% url 'service_invoice_create' invoice.pk %}">Book New Invoice</a>
+      <a href="{% url 'service_invoice_update' invoice.pk %}">Edit</a> |
+      <a href="{% url 'service_invoice_delete' invoice.pk %}">Delete</a>
+    </li>
+  {% endfor %}
+</ul>
+{% endblock %}

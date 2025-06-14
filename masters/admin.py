@@ -2,7 +2,17 @@ from django.contrib import admin
 from . models import *
 
 # Register your models here.
+admin.site.register(Service_Category)
+admin.site.register(Service_Sub_Category)
+admin.site.register(Cost_Center)
+admin.site.register(Sub_Cost_Center)
+admin.site.register(AccountingYear)
+admin.site.register(UnitAccountBalance)
 admin.site.register(Supplier_Service)
+admin.site.register(TCS_Head)
+admin.site.register(TCS)
+admin.site.register(Formula)
+admin.site.register(State_Excise_Levies_Rate)
 admin.site.register(Service_Contracts)
 admin.site.register(User_Roles)
 admin.site.register(State),

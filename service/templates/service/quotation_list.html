@@ -1,0 +1,93 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Service Quotations{% endblock %}
+{% block main-content %}
+
+<div class="container-fluid mt-2">
+    <h1 class="mb-4 text-warning text-center">Service Quotations</h1>    
+    <a href="{% url 'service_quotation_create' %}" class="btn btn-primary mb-4">Create New Quotation</a>
+
+    <table class="table table-bordered table-hover">
+        <thead class="table-light">
+            <tr>
+                <th class="text-center">Transaction No</th>
+                <th class="text-center">Supplier</th>
+                <th class="text-center">Description</th>
+                <th class="text-center">Amount</th>
+                <th class="text-center">Status</th>
+                <th class="text-center">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quotation in quotations %}
+                <tr>
+                    <td>{{ quotation.transaction_number }}</td>
+                    <td>{{ quotation.supplier.sp_user.supplier_name }}</td>
+                    <td>
+                        {% for item in quotation.quotation_items.all %}
+                        {{ forloop.counter }}.
+                            {{ item.service_description }}<br>
+                           
+                        {% empty %}
+                            No items
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for item in quotation.quotation_items.all %}
+                        
+                            {{ item.amount}}<br>
+                           
+                        {% empty %}
+                            No amount
+                        {% endfor %}
+                    </td>                
+                    <td>{{quotation.status}}</td>                       
+                    
+                    <td>
+                        {% if  not request.user.user_roles.can_approve == True %}
+                        <a href="{% url 'service_quotation_update' quotation.pk %}"class="btn btn-lg btn-primary" style='width: 150px'>Edit</a>
+
+                        <!-- Delete Button triggers modal -->
+                        <button class="btn btn-lg btn-danger" style='width: 150px'data-bs-toggle="modal" data-bs-target="#deleteModal{{ quotation.pk }}">Delete</button>
+                        {% endif %}
+
+                        {% if quotation.status == 'Pending' %}
+                            <form action="{% url 'service_quotation_approve' quotation.pk %}" method="post" style="display:inline;">
+                                {% csrf_token %}
+                                <button type="submit" class="btn btn-lg btn-success" style='width: 150px'>Approve</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                </tr>
+
+                <!-- Delete Modal -->
+                <div class="modal fade" id="deleteModal{{ quotation.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ quotation.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title" id="deleteModalLabel{{ quotation.pk }}">Confirm Delete</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                            </div>
+                            <div class="modal-body">
+                                Are you sure you want to delete this quotation: <strong>{{ quotation.transaction_number }}</strong>?
+                            </div>
+                            <div class="modal-footer">
+                                <form action="{% url 'service_quotation_delete' quotation.pk %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="btn btn-danger">Delete</button>
+                                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+            {% empty %}
+                <tr><td colspan="4" class="text-center">No quotations available.</td></tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+{% endblock %}

@@ -24,8 +24,11 @@
                             <a href="{% url 'quotation_entry' %}" class="nav-link text-white">Quotation Entry</a>
                         </li>
                      <li class="nav-item mb-2">
-                            <a href="{% url 'po_entry' %}" class="nav-link text-white">Generate Purchase Order</a>
+                            <a href="{% url 'quotation_pending_po_generation' %}" class="nav-link text-white">Quotation Pending Po</a>
                         </li>
+                     {% comment %} <li class="nav-item mb-2">
+                            <a href="{% url 'po_entry' %}" class="nav-link text-white">Generate Purchase Order</a>
+                        </li> {% endcomment %}
                         <li class="nav-item mb-2">
                             <a href="{% url 'vehicle_awaiting_unloading' %}" class="nav-link text-white">
                                 Vehicles in Factory  
@@ -36,11 +39,11 @@
                             <a href="{% url 'mrn_awaiting_stock_location' %}" class="nav-link text-white">MRN pending Stock Location <span class='text-danger'>{{stock_location}}</span></a>
                         </li>
                         <li class="nav-item mb-2">
-                            {% comment %} <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Blend Awaiting  Issue <span class='text-danger'>{{blend_awaiting_issue}}</span></a> {% endcomment %}
+                            <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Blend Awaiting  Issue <span class='text-danger'>{{blend_awaiting_issue}}</span></a>
                         </li>
-                        {% comment %} <li class="nav-item mb-2">
-                            <a href="{% url 'bottling_requisition_awating_issue' %}" class="nav-link text-white">Bottling_Requisition_Pending_Issue <span class='text-danger'>{{bottling_requisition_awaiting_issue}}</span></a>
-                        </li>                         {% endcomment %}
+                        <li class="nav-item mb-2">
+                        <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Bottling_Requisition_Pending_Issue <span class='text-danger'>{{bottling_requisition_made}}</span></a>
+                        </li>                     
                         <li class="nav-item mb-2">
                             <a href="#" class="nav-link text-white">Reports</a>
                         </li>
@@ -95,39 +98,42 @@
         </thead>
         <tbody>
             
-                {% for po in quote_queryset %}
-                    <tr>
-                        {% comment %} <td>{{ forloop.counter }}</td> <!-- Serial number --> {% endcomment %}
-                        <td>{{ po.id }}</td>
-                        {% comment %} <td>{{ po.unit }}</td> {% endcomment %}
-                        <td>{{ po.supplier }}</td>
-                        <td>{{ po.quotation_no }}</td>
-                        <td>{{ po.quotation_date }}</td>
-                        {% for item in po.quotation_item.all %}
-                        <td>{{ item.item}}</td>
-                        <td>{{ item.quantity }}</td>
-                        <td>{{ item.unit_rate }}</td>
-                        <td>{{ item.value }}</td> 
-                        {% endfor %}                       
-                        <td>{{ po.valid_till }}</td>
-                        <td>{{ po.balance_quantity }}</td>
-                        <td>{{ po.taxes }}</td>
-                        <td>{{ po.form_c }}</td>
-                        <td>{{ po.approver }}</td>
-                        <td>{{ po.approved }}</td>
-                        <td>
-                            <a href="{% url 'approve_quotation' po.id %}" 
-                               class="btn btn-primary {% if not profile.can_approve or po.approved %}disabled{% endif %}">
-                               {% if po.approved %}
-                                   Approved
-                               {% else %}
-                                   Approve
-                               {% endif %}
-                            </a>
-                        </td>
-                    </tr>
-                {% endfor %}
-            {% endif %}
+            {% for po in quote_queryset %}
+            {% for item in po.quotation_item.all %}
+                <tr>
+                    {% if forloop.first %}
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.id }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.supplier }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.quotation_no }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.quotation_date }}</td>
+                    {% endif %}
+                    <td>{{ item.item }}</td>
+                    <td>{{ item.quantity }}</td>
+                    <td>{{ item.unit_rate }}</td>
+                    <td>{{ item.value }}</td>
+                    {% if forloop.first %}
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.valid_till }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.balance_quantity }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.taxes }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.form_c }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.approver }}</td>
+                        <td rowspan="{{ po.quotation_item.all|length }}">{{ po.approved }}</td>
+                    {% endif %}
+                    <td>
+                        <a href="{% url 'approve_quotation' po.id %}" 
+                           class="btn btn-primary {% if not profile.can_approve or po.approved %}disabled{% endif %}">
+                           {% if po.approved %}
+                               Approved
+                           {% else %}
+                               Approve
+                           {% endif %}
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% endfor %}
+       </tr> 
+     {% endif %}
         </tbody>
     </table>
     <table class="table table-hover">

@@ -2,56 +2,54 @@
 
 {% block main-content %}
   <!-- Display a table with serial numbers -->
-  <center><h3>Quotation List</h3></center>
+  <center><h3 class='text-warning'>Open Quotations</h3></center>
   <table class="table table-hover">
     <thead>
       <tr>
-        <th>Serial No.</th>
+        {% comment %} <th>Serial No.</th> {% endcomment %}
         <th>ID</th>
-        <th>Unit</th>
+        {% comment %} <th>Unit</th> {% endcomment %}
         <th>Supplier</th>
         <th>Quotation Number</th>
         <th>Quotation Date</th>
         <th>Item</th>
         <th>Quantity</th>
+        <th>Balance Quantity</th>
         <th>Rate</th>
         <th>Amount</th>
         <th>Valid_Till</th>
-        <th>Tax_Term</th>
-        <th>Form C</th>
-        <th>Form C</th>
+        <th>Tax_Term</th>                
         <th>Approver</th>
-        <th>Approval Status</th>
+        {% comment %} <th>Approval Status</th> {% endcomment %}
       </tr>
     </thead>
     <tbody>
-      {% for po in list %}
+      {% for po in pending %}
       {% comment %} {% for item in item  %} {% endcomment %}
         <tr>
-          <td>{{ forloop.counter }}</td> <!-- Serial number -->
+          {% comment %} <td>{{ forloop.counter }}</td> <!-- Serial number --> {% endcomment %}
           <td>{{ po.id }}</td>
-          <td>{{ po.unit}}</td>
+          {% comment %} <td>{{ po.unit}}</td> {% endcomment %}
           <td>{{ po.supplier }}</td>
           <td>{{ po.quotation_no }}</td>
           <td>{{ po.quotation_date }}</td>
-          <td>{{ po.item }}</td>
-          <td>{{ po.quantity }}</td>
-          <td>{{ po.unit_rate }}</td>
-          <td>{{ po.value}}</td>          
+            {% for item in po.quotation_item.all %}
+            <td>{{ item.item }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.balance_quantity }}</td>
+            <td>{{ item.unit_rate }}</td>
+            <td>{{ item.value}}</td>
+            {% if not forloop.last %}
+            </tr><tr><td></td><td></td><td></td><td></td>
+            {% endif %}
+            {% endfor %}                    
           <td>{{ po.valid_till}}</td>          
           <td>{{ po.taxes}}</td>          
-          <td>{{ po.form_c}}</td>          
+          {% comment %} <td>{{ po.form_c}}</td>           {% endcomment %}
           <td>{{ po.approver}}</td>          
-          <td>{{ po.approved }}</td>
-          <td>
-            <a href="{% url 'approve_quotation' po.id %}" 
-               class="btn btn-primary {% if po.approved %}disabled{% endif %}">
-               {% if po.approved %}
-                   Approved
-               {% else %}
-                   Approve
-               {% endif %}
-            </a>
+          {% comment %} <td>{{ po.approved }}</td> {% endcomment %}
+        <td>
+         <a href="{% url 'po_entry' po.id %}"><button type="submit" class="btn btn-primary">Create PO</button></a>
         </td>
         </tr>        
       {% endfor %}

@@ -1,0 +1,12 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+<center><h3 class='text-warning'>Add Items to Permit</h3></center>   
+    <form method= POST>
+        {% csrf_token %}
+        {{form|crispy}}
+        {{decision_form|crispy}}
+        <center><button type="submit" class="btn btn-primary">Submit</button></center>
+    </form>
+{% endblock main-content %}

@@ -1,0 +1,50 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Pending Permit List</h3></center>
+
+<!-- Search form -->
+<form method="GET" action="{% url 'mrn_awaiting_stock_location' %}" class="mb-3">
+    <div class="input-group w-50">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form><br><br><br>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>                  
+            <th>Permit Number</th>
+            <th>Permit Date</th>
+            <th>Customer</th>
+            <th>Validity</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if pending_permit %}
+            {% for item in pending_permit %}
+                <tr>
+                    <td>{{ item.id }}</td>                  
+                    <td>{{ item.permit_number }}</td>
+                    <td>{{ item.permit_date }}</td>
+                    <td>{{ item.customer }}</td>
+                    <td>{{ item.valid_till }}</td>
+                    <td>{{ item.status }}</td>
+                    <td>
+                        <a href="{% url 'sale_invoice' item.id %}">
+                            <button class='btn btn-primary'>Create Sale Invoice</button>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="13">No records found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock main-content %}

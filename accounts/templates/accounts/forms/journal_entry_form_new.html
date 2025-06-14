@@ -1,0 +1,198 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<div class="container mt-2">
+    <h1 class="text-center text-warning">Journal Entry</h1> <br><br>
+    <form method="POST">
+        {% csrf_token %}
+        <!-- Transaction Header -->
+        <div class="row class md-12">
+                {% comment %} <h2 class ='text-center text-success'>Transaction Header</h2> <br><br> {% endcomment %}
+                <div class="card mb-4">
+                    <div class="card-body">
+                        <div class="row">
+                            <div class="col-md-6 text-primary">
+                                {{ header_form.transaction_type|as_crispy_field }}
+                            </div>
+                            <div class="col-md-6 text-primary">
+                                {{ header_form.unit|as_crispy_field }}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            </div>
+        
+
+        <!-- Debit Entries -->
+        {% comment %} <h2>Debit Entries</h2> {% endcomment %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="table table-bordered" id="debit-table">
+                    <thead>
+                        <tr>
+                            <th class='text-primary text-center'>Transaction Category</th>
+                            <th class='text-primary text-center'>Account Head</th>
+                            <th class='text-primary text-center'>Debit Amount</th>
+                            <th class= 'text-primary text-center'>Narration</th>
+                            {% comment %} <th class='text-primary text-center'>Delete</th> {% endcomment %}
+                            {% comment %} <th>Delete</th> {% endcomment %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {{ debit_formset.management_form }}
+                        {% for form in debit_formset %}
+                            <tr>
+                                {% for field in form.visible_fields %}
+                                    <td>{{ field }}</td>
+                                {% endfor %}
+                                {% comment %} <td>{{ form.DELETE }}</td> {% endcomment %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Credit Entries -->
+        {% comment %} <h2>Credit Entries</h2> {% endcomment %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <table class="table table-bordered" id="credit-table">
+                    <thead>
+                         <tr>
+                            <th class='text-primary text-center'>Transaction Category</th>
+                            <th class='text-primary text-center'>Account Head</th>
+                            <th class='text-primary text-center'>Credit Amount</th>
+                            <th class='text-primary text-center'>Narration</th>
+                            {% comment %} <th class ='text-primary text-center'>Delete</th> {% endcomment %}
+                        </tr> 
+                    </thead>
+                    <tbody>
+                        {{ credit_formset.management_form }}
+                        {% for form in credit_formset %}
+                            <tr>
+                                {% for field in form.visible_fields %}
+                                    <td>{{ field }}</td>
+                                {% endfor %}
+                                {% comment %} <td>{{ form.DELETE }}</td> {% endcomment %}
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Single Add Row Button -->
+        <div class="text-center">
+            <button type="button" class="btn btn-primary" id="add-row" disabled>Add Row</button>
+        <span class="text-center mt-3">            
+                <button type="submit" class="btn btn-success" id="save-button" disabled>Save</button>
+            </span>
+        </div>
+
+        <!-- Save Button -->
+        
+    </form>
+</div>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const saveButton = document.getElementById('save-button');
+        const addRowButton = document.getElementById('add-row');
+    
+        const debitTableBody = document.querySelector('#debit-table tbody');
+        const creditTableBody = document.querySelector('#credit-table tbody');
+    
+        function calculateTotals() {
+            let debitTotal = 0;
+            let creditTotal = 0;
+    
+            document.querySelectorAll('input[name$="debit_amount"]').forEach(input => {
+                debitTotal += parseFloat(input.value) || 0;
+            });
+    
+            document.querySelectorAll('input[name$="credit_amount"]').forEach(input => {
+                creditTotal += parseFloat(input.value) || 0;
+            });
+    
+            if (debitTotal === creditTotal && debitTotal > 0) {
+                saveButton.disabled = false;
+                addRowButton.disabled = true;
+            } else {
+                saveButton.disabled = true;
+                addRowButton.disabled = false;
+            }
+        }
+    
+        function attachEventListeners() {
+            document.querySelectorAll('input[name$="debit_amount"], input[name$="credit_amount"]').forEach(input => {
+                input.removeEventListener('input', calculateTotals);
+                input.addEventListener('input', calculateTotals);
+            });
+        }
+    
+        function addNewRow() {
+            let debitTotal = 0, creditTotal = 0;
+    
+            document.querySelectorAll('input[name$="debit_amount"]').forEach(input => {
+                debitTotal += parseFloat(input.value) || 0;
+            });
+    
+            document.querySelectorAll('input[name$="credit_amount"]').forEach(input => {
+                creditTotal += parseFloat(input.value) || 0;
+            });
+    
+            let tableBody, prefix;
+            if (debitTotal < creditTotal) {
+                tableBody = debitTableBody;
+                prefix = 'debit';
+            } else {
+                tableBody = creditTableBody;
+                prefix = 'credit';
+            }
+    
+            const totalFormsInput = document.querySelector(`#id_${prefix}-TOTAL_FORMS`);
+            const formCount = parseInt(totalFormsInput.value);
+            const newFormIndex = formCount;
+    
+            const lastRow = tableBody.querySelector('tr:last-child');
+            if (lastRow) {
+                const newRow = lastRow.cloneNode(true);
+                newRow.querySelectorAll('input, select').forEach(input => {
+                    const oldName = input.getAttribute('name');
+                    const oldId = input.getAttribute('id');
+    
+                    if (oldName) {
+                        const newName = oldName.replace(`${prefix}-${formCount - 1}-`, `${prefix}-${newFormIndex}-`);
+                        input.setAttribute('name', newName);
+                    }
+    
+                    if (oldId) {
+                        const newId = oldId.replace(`${prefix}-${formCount - 1}-`, `${prefix}-${newFormIndex}-`);
+                        input.setAttribute('id', newId);
+                    }
+    
+                    input.value = '';
+                });
+    
+                tableBody.appendChild(newRow);
+                totalFormsInput.value = formCount + 1;
+                attachEventListeners();
+                calculateTotals();
+            }
+        }
+    
+        addRowButton.disabled = false;
+        saveButton.disabled = true;
+    
+        attachEventListeners();
+        calculateTotals();
+    
+        addRowButton.addEventListener('click', addNewRow);
+    });
+    </script>
+
+
+{% endblock main-content %}

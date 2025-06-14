@@ -1,10 +1,25 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-
+/* form{ */
+    /* border: 2px solid #eb6b6b; Black border */
+    /* padding: 8px; */
+    /* border-radius: 4px; Optional: Rounded corners */
+    /* font-size: 16px; Match the font size with the form */
+/* } */
+/* input[type="number"], input[type="text"],input[type="date"], select, textarea { */
+    /* width: 500px; */
+    /* padding: 8px; Add some padding for better appearance */
+    /* border: 2px solid #000 !important; Ensure the border is applied */
+    /* border-radius: 4px; Optional: Rounded corners */
+    /* font-size: 25px; Match the font size with the Django form */
+    /* height: 50px; Match the height with the Django form */
+    /* margin-bottom: 10px; Space between inputs */
+    /* box-sizing: border-box; Ensure padding doesn't affect width/height */
+/* } */
 body{
     font-family: 'Roboto', sans-serif;
-    font-size :600px;
-    font-weight:bold;
+    font-size :25px !important;
+    font-weight:normal !important;
     /* background-color:rebeccapurple; */
     color: aqua;
     display: flex;
@@ -24,12 +39,12 @@ form{
 
 button{
     width: 200px;
-    background-color: aliceblue;
-    color: bisque;
+    background-color: rgb(255,255,255);
+    color: rgb(7, 102, 157);
 }
 
 button:hover {
-    background-color: #8b20ef; /* Change to a softer red on hover */
+    background-color: #e91f1f; /* Change to a softer red on hover */
     transform: scale(1.05);    /* Slightly enlarge the button */
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Add a subtle shadow */
+    box-shadow: 0 4px 8px rgba(136, 27, 27, 0.2); /* Add a subtle shadow */
 }

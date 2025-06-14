@@ -1,0 +1,111 @@
+[
+    {
+      "name": "Strength",
+      "item_cat": "ENA Spirit",
+      "standard_value": "68.4-68.8 O.P.",
+      "uom": "O.P."
+    },
+    {
+      "name": "Ethanol Content",
+      "item_cat": "ENA Spirit",
+      "standard_value": "95-96",
+      "uom": "v/v"
+    },
+    {
+      "name": "P.P. Time",
+      "item_cat": "ENA Spirit",
+      "standard_value": "Above 30 min",
+      "uom": "min"
+    },
+    {
+      "name": "Ethanol Content",
+      "item_cat": "Scotch Concentrate",
+      "standard_value": "40-46",
+      "uom": "%"
+    },
+    {
+      "name": "pH",
+      "item_cat": "Scotch Concentrate",
+      "standard_value": "3-4",
+      "uom": "pH"
+    },
+    {
+      "name": "Specific Gravity",
+      "item_cat": "Scotch Concentrate",
+      "standard_value": "0.79-0.81",
+      "uom": ""
+    },
+    {
+      "name": "Capacity",
+      "item_cat": "Glass Bottles",
+      "standard_value": "750",
+      "uom": "ml"
+    },
+    {
+      "name": "Wall Thickness",
+      "item_cat": "Glass Bottles",
+      "standard_value": "Minimum 3.2",
+      "uom": "mm"
+    },
+    {
+      "name": "Alkalinity",
+      "item_cat": "Glass Bottles",
+      "standard_value": "Class HGB 3",
+      "uom": ""
+    },
+    {
+      "name": "Tensile Strength",
+      "item_cat": "Guala Closures",
+      "standard_value": "Minimum 50",
+      "uom": "N"
+    },
+    {
+      "name": "Closure Diameter",
+      "item_cat": "Guala Closures",
+      "standard_value": "18-20",
+      "uom": "mm"
+    },
+    {
+      "name": "Material",
+      "item_cat": "Guala Closures",
+      "standard_value": "Plastic",
+      "uom": ""
+    },
+    {
+      "name": "Adhesive Type",
+      "item_cat": "Paper Sticker Labels",
+      "standard_value": "Permanent",
+      "uom": ""
+    },
+    {
+      "name": "Print Quality",
+      "item_cat": "Paper Sticker Labels",
+      "standard_value": "High Resolution",
+      "uom": ""
+    },
+    {
+      "name": "Size",
+      "item_cat": "Paper Sticker Labels",
+      "standard_value": "40mm x 40mm",
+      "uom": "mm"
+    },
+    {
+      "name": "Dimensions",
+      "item_cat": "Shipper Cartons",
+      "standard_value": "40cm x 30cm x 30cm",
+      "uom": "cm"
+    },
+    {
+      "name": "Material",
+      "item_cat": "Shipper Cartons",
+      "standard_value": "Corrugated Cardboard",
+      "uom": ""
+    },
+    {
+      "name": "Weight",
+      "item_cat": "Shipper Cartons",
+      "standard_value": "500",
+      "uom": "g"
+    }
+  ]
+  

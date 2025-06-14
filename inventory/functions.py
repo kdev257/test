@@ -15,17 +15,43 @@ from django.db.models import Q
 
 from django.db import models
 from django.shortcuts import render
-
-def yes_no_dialog(request, message, yes_url, no_url):
-    """
-    Generic reusable function to render Yes/No dialogs.
-    """
-    return render(request, "inventory/yes_no.html", {
-        "message": message,
-        "yes_url": yes_url,
-        "no_url": no_url,
-    })
-
+# from stock.models import Stock_Entry,Stock_Ledger,Unit_Sub_Location
+def update_stock_ledger(id,model_class1,model_class2):
+    stock_entry = model_class1.objects.get(id=id)
+    stock_ledger=model_class2.objects.filter(item=stock_entry.item,unit=stock_entry.unit).last()
+    if stock_ledger:
+        opening_quantity = stock_ledger.closing_quantity
+        opening_value = stock_ledger.closing_value
+        opening_rate = round(stock_ledger.closing_rate,4)    
+        transaction_type = stock_entry.transaction_type
+        transaction_number = stock_entry.transaction_number     
+        transaction_date = stock_entry.transaction_date
+        unit = stock_entry.unit
+        item = stock_entry.item
+    else:
+        opening_quantity = 0
+        opening_value = 0
+        opening_rate = 0
+        transaction_type = stock_entry.transaction_type
+        transaction_number = stock_entry.transaction_number     
+        transaction_date = stock_entry.transaction_date
+        unit = stock_entry.unit
+        item = stock_entry.item
+    if transaction_type.transaction_name == 'MRN':
+        quantity = stock_entry.quantity
+        value = stock_entry.value
+        receipt_rate =round(value/quantity,4)
+        stock_ledger = model_class2.objects.create(transaction_type=transaction_type,transaction_number=transaction_number,transaction_date=transaction_date,unit=unit,item=item,receipt_quantity=quantity,receipt_value=value,receipt_rate=receipt_rate,opening_quantity=opening_quantity,opening_value=opening_value,opening_rate=opening_rate,closing_quantity=opening_quantity+quantity,closing_value=opening_value+value,closing_rate=round((opening_value+value)/(opening_quantity+quantity),4),stock_entry=stock_entry)
+    elif transaction_type.transaction_name == 'Issue':
+        quantity = stock_entry.issue_quantity
+        value = stock_entry.issue_value
+        issue_rate = round(value/quantity,4)
+        stock_ledger = model_class2.objects.create(transaction_type=transaction_type,transaction_number=transaction_number,transaction_date=transaction_date,unit=unit,item=item,issue_quantity=quantity,issue_value=value,issue_rate=issue_rate,opening_quantity=opening_quantity,opening_value=opening_value,opening_rate=opening_rate,closing_quantity=opening_quantity-quantity,closing_value=opening_value-value,closing_rate=round((opening_value-value)/(opening_quantity-quantity),4),stock_entry=stock_entry)
+    # elif transaction_type.transaction_name == 'return':
+    #     quantity = stock_entry.return_quantity  
+    #     value = stock_entry.return_value
+    #     return_rate = round(value/quantity,4)
+    #     stock_ledger = Stock_Ledger.objects.create(transaction_type=transaction_type,transaction_number=transaction_number,transaction_date=transaction_date,unit=unit,item=item,return_quantity=quantity,return_value=value,return_rate_rate=return_rate,opening_stock=opening_stock,opening_value=opening_value,opening_rate=opening_rate,closing_quantity=opening_stock+quantity,closing_value=opening_value+value,closing_rate=round((opening_value-value)/(opening_stock-quantity),4))
 
 
 def update_account_chart(id,debit_amount,credit_amount):    
@@ -69,27 +95,29 @@ def update_account_chart(id,debit_amount,credit_amount):
 def update_stock_location(id,item,receipt_quantity,receipt_value,issue_quantity,issue_value,unit ):    
     location = Unit_Sub_Location.objects.get(id= id,unit=unit)
     if location:
-        location.item = item
+        item = item
         location.receipt_quantity = location.receipt_quantity + receipt_quantity        
         location.receipt_value += receipt_value
         location.issued_quantity += issue_quantity
         location.issue_value += issue_value
         location.closing_quantity = location.opening_quantity + location.receipt_quantity - location.issued_quantity
         location.closing_value = location.opening_value + location.receipt_value - location.issue_value
-        location.average_rate = (location.closing_value + location.receipt_value) / (location.closing_quantity + location.receipt_quantity)       
+        location.average_rate = round((location.opening_value+location.receipt_value-location.issue_value)/(location.opening_quantity+ location.receipt_quantity-location.issued_quantity),4) if location.closing_quantity > 0 else 0 
         # location.save()
         
-        unit_stock_location = location.unit_stock_location        
+        unit_stock_location = location.unit_stock_location 
+        item = item       
         unit_stock_location.receipt_quantity += receipt_quantity
         unit_stock_location.receipt_value += receipt_value
         unit_stock_location.issued_quantity += issue_quantity
         unit_stock_location.issue_value += issue_value
         unit_stock_location.closing_quantity = location.opening_quantity + location.receipt_quantity - location.issued_quantity
         unit_stock_location.closing_value = location.opening_value + location.receipt_value - location.issue_value
-        unit_stock_location.average_rate = (location.closing_value + location.receipt_value) / (location.closing_quantity + location.receipt_quantity)
+        unit_stock_location.average_rate = round(unit_stock_location.closing_value/unit_stock_location.closing_quantity,4) if unit_stock_location.closing_quantity > 0 else 0
         # unit_stock_location.save()  
         
-        stock_location = unit_stock_location.stock_location        
+        stock_location = unit_stock_location.stock_location
+        item = item        
         stock_location.receipt_quantity += receipt_quantity
         stock_location.receipt_value += receipt_value
         stock_location.issued_quantity += issue_quantity
@@ -131,7 +159,24 @@ def generate_unique_transaction_number(model_class,transaction_type, unit):
     # Format the new transaction number
     return f'{transaction_type}/{unit}/{str(new_number).zfill(5)}'
 
-
+def gst_on_service(po, value, service, supplier_state):
+    cgst=sgst=igst=0
+    if po.business == 'Exempt':
+        creditable = False
+    else:
+        creditable = True
+    total_tax = 0       
+    # Intra-state transaction
+    tax_rate = Service.objects.get(id=service.id).gst_rate
+    if not tax_rate:
+        raise ValidationError('No Rate has been defined for this item')
+    tax_amount = value * tax_rate / 100
+    if supplier_state != po.unit.state:
+        igst = tax_amount
+    else:
+        cgst = tax_amount / 2
+        sgst = tax_amount / 2
+    return {'CGST':cgst, 'SGST':sgst, 'IGST':igst, 'creditable':creditable, }
 
 
 def calculate_tax(po, value,item, supplier_state):
@@ -141,13 +186,12 @@ def calculate_tax(po, value,item, supplier_state):
     total_tax = 0
     
     # Check if the item is non-GST
-    if item.item_tax_type == 'Non_GST': 
-        print(True)       
+    if item.item_tax_type == 'Non_GST':                
         # Non-GST Tax Calculation
         if supplier_state == po.quotation.unit.state:
             # Apply VAT for intra-state transactions
             taxes = State_Tax_on_Sale_Of_Goods.objects.filter(state=supplier_state).exclude(tax_name='CST')
-            if taxes is None:
+            if not taxes.exists():
                 raise ValidationError('No Rate has been defined for this item')
             for tax in taxes:
                 rate = tax.rate
@@ -158,7 +202,7 @@ def calculate_tax(po, value,item, supplier_state):
         else:
             # Apply CST for inter-state transactions
             taxes = State_Tax_on_Sale_Of_Goods.objects.filter(state=supplier_state).exclude(tax_name='VAT')
-            if taxes is None:
+            if not taxes.exists():
                 raise ValidationError('No Rate has been defined for this item')
             for tax in taxes:
                 rate = tax.rate
@@ -171,7 +215,7 @@ def calculate_tax(po, value,item, supplier_state):
         if po.quotation.supplier.supplier_state == po.unit.state:
                 # Apply CGST and SGST for intra-state transactions
             taxes = Gst_On_Goods.objects.filter(item=item).exclude(tax_name='IGST')
-            if taxes is None:
+            if not taxes.exists():
                 raise ValidationError('No Rate has been defined for this item')
             for tax in taxes:
                 rate = tax.rate
@@ -182,7 +226,7 @@ def calculate_tax(po, value,item, supplier_state):
         else:            
             # Apply IGST for inter-state transactions
             taxes = Gst_On_Goods.objects.filter(item=item).exclude(Q(tax_name='CGST') | Q(tax_name='SGST'))
-            if taxes is None:
+            if not taxes.exists():
                 raise ValidationError('No Rate has been defined for this item')
             for tax in taxes:
                 rate = tax.rate
@@ -192,6 +236,47 @@ def calculate_tax(po, value,item, supplier_state):
                 
     
     return {'VAT':vat, 'CST':cst, 'CGST':cgst, 'SGST':sgst, 'IGST':igst, 'creditable':creditable}
+
+def assign_approver_services(transaction_type, inr_value, unit,cost_center):
+    """
+    Assign an approver to the Purchase Order (PO) based on the defined levels and monetary limit.
+    
+    Args:
+    - transaction_type: The type of transaction (e.g., PO)
+    - inr_value: The monetary value of the transaction
+    - unit: The unit for which the approver is being assigned
+    
+    Returns:
+    - The approver user instance if found, otherwise None
+    """
+    # Find approvers based on transaction type and monetary limit
+    approvers = DOA.objects.filter(
+        transaction_type=transaction_type,
+        monetary_limit__gte=inr_value,
+        cost_center=cost_center,
+        
+    ).order_by('monetary_limit')
+    if not approvers.exists():
+        messages.error("Error: No approver found for the given transaction type, value, and cost center.")
+
+    # Loop through the approvers to find the correct one
+    for approver in approvers:
+        if 'Unit Head' in approver.level:
+            # Check if there's a unit head approver
+            selected_unit = User_Roles.objects.filter(
+                unit=unit,
+                can_approve=True,
+                user_id=approver.user  #  `user` is a ForeignKey in DOA pointing to a `User`
+            ).first()
+
+            if selected_unit:
+                return selected_unit.user_id  # Return the User instance once assigned
+
+        else:
+            # For non-Unit Head approvers, return the User directly
+            return approver.user  # Ensure this is returning a `User` instance
+
+    return None  # No approver was assigned
 
 
 def assign_approver(transaction_type, inr_value, unit):
@@ -209,7 +294,8 @@ def assign_approver(transaction_type, inr_value, unit):
     # Find approvers based on transaction type and monetary limit
     approvers = DOA.objects.filter(
         transaction_type=transaction_type,
-        monetary_limit__gte=inr_value
+        monetary_limit__gte=inr_value,        
+        
     ).order_by('monetary_limit')
 
     # Loop through the approvers to find the correct one
@@ -219,7 +305,7 @@ def assign_approver(transaction_type, inr_value, unit):
             selected_unit = User_Roles.objects.filter(
                 unit=unit,
                 can_approve=True,
-                user_id=approver.user  # Assuming `user` is a ForeignKey in DOA pointing to a `User`
+                user_id=approver.user  #  `user` is a ForeignKey in DOA pointing to a `User`
             ).first()
 
             if selected_unit:
@@ -259,37 +345,29 @@ def calculate_gst(po, taxes, intra_state):
     
 
 
-def calculate_tds(state):
-    cha_charges = Supplier_Service.objects.filter(service=1)   
-    total_charges = 0
-    for charges in cha_charges:            
-        ass_type= charges.supplier.assessee_type   
-        service = charges.service_id
-        print(service)
-        supplier_state = charges.supplier.supplier_state
-        gst_rate = charges.service.gst_rate
-        lower_rate = charges.lower_rate
-        fee_name = charges.fee_name
-        fee_rate = charges.rate
-        total_charges += fee_rate    
-    cha_gst = total_charges*gst_rate / 100
-    if supplier_state == state:
-        cgst = cha_gst/2
-        sgst = cha_gst /2
-    else:
-        igst = cha_gst   
+def calculate_tds(supplier,service_classification,inr_value):
+    # Check if the supplier has a lower TDS rate defined
+    
+    supplier_exists = Lower_TDS.objects.filter(supplier=supplier).exists()
+    tds_amount = 0
+    if supplier_exists:
+        # If the supplier has a lower TDS rate, use that rate        
+        tds_rate = Lower_TDS.objects.get(supplier=supplier).rate
+        tds_amount = inr_value * tds_rate / 100
+    else:      
+    
+        if not service_classification:
+            raise ValidationError('Service Classification not found')
+    
+        tds = TDS.objects.filter(service_classification=service_classification)
+        tds_amount = 0
+        if tds.exists():
+            for t in tds:
+                rate = t.rate
+                tds_amount += inr_value * rate / 100
+        else:    
+            raise  ValidationError('No TDS Rate has been defined for this item')     
         
-    if charges.lower_rate:
-        pass
-    else:
-        if  ass_type == 'Individual' or ass_type == 'HUF':       
-            tds = TDS.objects.get(service_classification = service)
-            rate = tds.rate
-            tds_amount = total_charges * rate / 100
-        else:
-            tds = TDS.objects.filter(service_classification = service).first()
-            rate = tds.rate
-            tds_amount = total_charges * rate / 100
     return tds_amount
 
 def calculate_custom(inr_value,item):
@@ -308,8 +386,12 @@ def calculate_custom(inr_value,item):
         
         # Add the tax name and levy amount to the dictionary
         named_dict[tax_name] = levy_amount
-    custom = named_dict['Custom Duty']
-    igst = named_dict['IGST']
+    if 'IGST' in named_dict.keys():
+        custom = named_dict['Custom Duty']
+        igst = named_dict['IGST']
+    else:
+        custom = named_dict['Custom Duty']
+        igst = 0   
         
     print(custom,igst)
     return custom,igst

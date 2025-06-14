@@ -1,0 +1,54 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Blend Awaiting Processing</h3></center>
+
+<!-- Search form -->
+<form method="GET" action="{% url 'blend_awaiting_processing' %}" class="mb-3">
+    <div class="input-group w-50">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>                  
+            <th>Blend_No</th>
+            <th>Blend_Date</th>
+            <th>Unit</th>
+            <th>Brand</th>
+            <th>Blend_Quantity</th>
+            <th>UOM</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if issue_to_blend %}
+            {% for issue in issue_to_blend %}
+                <tr>
+                    <td>{{ issue.id }}</td>                  
+                    <td>{{ issue.batch_number }}</td>
+                    <td>{{ issue.batch_date }}</td>
+                    <td>{{ issue.unit }}</td>                    
+                    <td>{{ issue.brand }}</td>                    
+                    <td>{{ issue.batch_quantity }}</td>
+                    <td>{{ issue.uom }}</td>
+                    
+                    <td>
+                        <a href="{% url 'blend_wip' issue.id  %}">
+                            <button class='btn btn-primary'>Process</button>
+                        </a>
+                    </td>
+                </tr>
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="13">No records found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock main-content %}

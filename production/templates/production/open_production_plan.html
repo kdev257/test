@@ -1,0 +1,61 @@
+{% extends 'inventory/index.html' %}
+
+{% block main-content %}
+<hr class='text-warning text-lg'> 
+<center><h3 class='text-warning'>Daily Production Plan</h3></center>
+
+<!-- Search form -->
+<form method="GET" action="{% url 'daily_production_plan' %}" class="mb-3">
+    <div class="input-group w-50">
+        <input type="text" name="q" value="{{ query }}" class="form-control" placeholder="Search...">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+</form><br><br>
+
+<table class="table table-hover">
+    <thead>
+        <tr>
+            <th>ID</th>                  
+            <th>Transaction_Number</th>
+            <th>Transaction_Date</th>
+            <th>Unit</th>
+            <th>Blend</th>
+            <th>Brand</th>
+            <th>SKU</th>
+            <th>Quantity(Cases)</th>   
+            <th>State</th>                   
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% if open_plan %}
+            {% for item in open_plan %}
+            {% for line  in item.production_plan_line.all  %}         
+                <tr>
+                    <td>{{ item.id }}</td>                  
+                    <td>{{ item.transaction_number }}</td>
+                    <td>{{ item.transaction_date }}</td>
+                    <td>{{ item.unit }}</td>
+                    <td>{{ item.blend }}</td>                                   
+                    <td>{{ line.brand }}</td>
+                    <td>{{ line.sku }}</td>
+                    <td>{{ line.production }}</td>                           
+                    <td>{{ line.state}}</td>                           
+                    
+                    <td>
+                        <a href="{% url 'blend_requisition' line.id  %}"> <button type="submit" class="btn btn-primary"> Create Blend Requisition</button></a>
+                      </td>
+                      <td>
+                        <a href="{% url 'production_entry' line.id  %}"> <button type="submit" class="btn btn-primary">Production Entry</button></a>
+                      </td>
+                </tr>
+                {% endfor %}
+            {% endfor %}
+        {% else %}
+            <tr>
+                <td colspan="13">No records found.</td>
+            </tr>
+        {% endif %}
+    </tbody>
+</table>
+{% endblock main-content %}

@@ -9,34 +9,47 @@
                 <img src="logo.png" alt="Company Logo" class="img-fluid mb-3">
             </div>
             <ul class="nav flex-column">
+                 <li class="nav-item mb-2">
+                    <a href="{% url 'create_blend_bom' %}" class="nav-link text-white">Create BOM </a>
+                </li> 
                 <li class="nav-item mb-2">
-                    {% comment %} <a href="{% url 'create_blend' %}" class="nav-link text-white">Create Blend </a> {% endcomment %}
-                {% comment %} </li> {% endcomment %}
+                    <a href="{% url 'create_blend' %}" class="nav-link text-white">Create Blend </a>
+                </li> 
                 <li class="nav-item mb-2">
-                    {% comment %} <a href="{% url 'blend_awaiting_processing' %}" class="nav-link text-white">Process Blend<span class='text-danger'> ({{issued_to_blend}})</span></a> {% endcomment %}
+                    <a href="{% url 'blend_awaiting_processing' %}" class="nav-link text-white">Process Blend<span class='text-danger'> ({{issued_to_blend}})</span></a>
                 </li>
-                {% comment %} <li class="nav-item mb-2">
+                 <li class="nav-item mb-2">
                     <a href="{% url 'blend_awaiting_transfer' %}"class="nav-link text-white">Transfer to Holding Tank<span class='text-danger'> ({{transfer_blend}})</span></a>
                 </li>
+                 <li class="nav-item mb-2">
+                    <a href="{% url 'daily_production_plan' %}"class="nav-link text-white">Daily Production Plan</a>
+                </li>
+                 <li class="nav-item mb-2">
+                    <a href="{% url 'daily_production_plan_list' %}"class="nav-link text-white">Daily Production Plan List</a>
+                </li>
                 <li class="nav-item mb-2">
+                    <a href="{% url 'open_production_plan' %}"class="nav-link text-white">Open Production Plan<span class='text-danger'> ({{ready_count}})</span></a>
+                </li>
+
+                {% comment %} <li class="nav-item mb-2">
                     <a href="{% url 'receive_blend' %}"class="nav-link text-white">Receive in Holding Tank<span class='text-danger'> ({{receive_blend}})</span></a>
-                </li>
-                <li class="nav-item mb-2">
+                </li> {% endcomment %}
+                {% comment %} <li class="nav-item mb-2">
                     <a href="{% url 'blend_awaiting_bottling' %}"class="nav-link text-white">Blend Awaiting Bottling<span class='text-danger'> ({{awaiting_bottling}})</span></a>
-                </li>
-                <li class="nav-item mb-2">
-                    <a href="{% url 'blend_requisition' %}"class="nav-link text-white">Create Blend Requisition<span class='text-danger'></span></a>
+                </li> {% endcomment %}
+                 <li class="nav-item mb-2">
+                    {% comment %} <a href="{% url 'blend_requisition' %}"class="nav-link text-white">Create Blend Requisition<span class='text-danger'></span></a> {% endcomment %}
                 </li>                
-                <li class="nav-item mb-2">
+                {% comment %} <li class="nav-item mb-2">
                     <a href="#"class="nav-link text-white">Create Bottling Requisition<span class='text-danger'></span></a>
-                </li>                
+                </li>                 {% endcomment %}
                 
-                <li class="nav-item mb-2">
+                {% comment %} <li class="nav-item mb-2">
                     <a href="{% url 'receive_blend_for_bottling' %}"class="nav-link text-white">Receive Blend for Bottling<span class='text-danger'></span></a>
                 </li>                
                 <li class="nav-item mb-2">
                     <a href="{% url 'finished_goods' %}"class="nav-link text-white">Enter Day Report<span class='text-danger'></span></a>
-                </li>                 {% endcomment %}
+                </li>                  {% endcomment %}
                 <li class="nav-item mb-2">
                     <a href="#" class="nav-link text-white">Tasks</a>
                 </li>
@@ -85,7 +98,7 @@
                             <tr>
                                 <td>{{ ge.id }}</td>
                                 <td>{{ ge.batch_number }}</td>
-                                <td>{{ ge.production_date }}</td>
+                                <td>{{ ge.batch_date }}</td>
                                 <td>{{ ge.unit }}</td>
                                 <td>{{ ge.brand }}</td>
                                 <td>{{ ge.batch_quantity }}</td>

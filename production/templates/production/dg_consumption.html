@@ -1,0 +1,44 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+<form method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    <center><h1 class = 'text-warning'>Pls Enter Stock Quantity returned to main </h1></center><br><br><br>
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Transaction Type</th>
+                <th>Item</th>
+                <th>Issued Quantity</th>               
+                <th>Return Quantity</th>                
+            </tr>
+        </thead>
+        <tbody>           
+            {% for form in formset %}
+                <tr>
+                    <td>{{ form.id }}</td>
+                    <td>{{ form.transaction_type }}</td>
+                    <td>{{ form.item }}</td>
+                    <td>{{ form.issue_quantity }}</td>
+                    <td>{{ form.return_quantity }}</td>
+                    
+                </tr>
+            {% endfor %}
+        </tbody>
+         {% comment %} {% for form in formset %}
+            <tr>
+                <td>{{ form.item.errors }}{{ form.item }}</td>
+                <td>{{ form.issued_quantity.errors }}{{ form.issued_quantity }}</td>
+                <td>{{ form.return_quantity.errors }}{{ form.return_quantity }}</td>
+                <td>{{ form.actual_consumed_quantity.errors }}{{ form.actual_consumed_quantity }}</td>
+                <td>{{ form.remarks.errors }}{{ form.remarks }}</td>
+            </tr>
+            {% endfor %} {% endcomment %}
+    </table>
+   <center><button type="submit" class="btn btn-primary">Update</button></center>
+</form>
+
+{% endblock main-content %} 

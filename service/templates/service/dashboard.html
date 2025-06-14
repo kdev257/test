@@ -1,0 +1,66 @@
+<body class="bg-light">
+
+    <div class="container py-5">
+        <a href="{% url 'service_order_dashboard' %}"><h1 class="mb-4">📊 Service Order Dashboard</h1></a>    
+        <div class="row g-4 mb-5">
+            <div class="col-md-3">
+                <div class="card text-white bg-primary h-100">
+                    <div class="card-body">
+                       <h5 class="card-title">Total Orders <span>{{total_orders}}</span></h5>                        
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-warning h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Pending Approvals</h5>
+                        <h2>{{ pending_orders }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-success h-100">
+                    <div class="card-body">
+                       <a href="{% url 'service_order_dashboard' %}"><h5 class="card-title">Approved Orders</h5></a>
+                        <h2>{{ approved_orders }}</h2>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-white bg-secondary h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">Closed Orders</h5>
+                        <h2>{{closed_orders}}</h2>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <h4 class="mb-3">Order Status Distribution</h4>
+        <canvas id="statusChart" height="100"></canvas>
+    </div>
+    
+    <script>
+        const ctx = document.getElementById('statusChart').getContext('2d');
+        const statusChart = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Pending Approval', 'Approved', 'Closed'],
+                datasets: [{
+                    label: 'Service Orders',
+                    data: [{{ pending_orders }}, {{ approved_orders }}, {{ closed_orders }}],
+                    backgroundColor: [
+                        'rgb(255, 193, 7)',
+                        'rgb(25, 135, 84)',
+                        'rgb(108, 117, 125)'
+                    ],
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                responsive: true
+            }
+        });
+    </script>
+    
+    </body>

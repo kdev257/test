@@ -8,5 +8,7 @@ urlpatterns = [
     path('',include('login.urls')),
     path('prod/',include('production.urls')),
     path('acc/',include('accounts.urls')),
+    path('sale/',include('sale.urls')),
+    path('service/',include('service.urls')),
     
 ]

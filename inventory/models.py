@@ -1,7 +1,7 @@
 from django.db import models
 from django.db import transaction as db_transaction
 from django.core.exceptions import ObjectDoesNotExist
-from masters.models import User,Company,Unit,State,User_Roles,Transaction_Type,Supplier,Item,Currency,Business,Standard_Quality_Specifications,Unit_Sub_Location,Service,Supplier_Service,Landed_Cost_Rule,Freight,Item_Category
+from masters.models import User,Company,Unit,State,User_Roles,Transaction_Type,Supplier,Item,Currency,Business,Standard_Quality_Specifications,Unit_Sub_Location,Service,Supplier_Service,Landed_Cost_Rule,Freight,Item_Category,Account_Chart,Service_Contracts
 from datetime import datetime
 from django.db.models import Max
 from django.utils import timezone
@@ -40,7 +40,7 @@ class Quotation(models.Model):
     approved=  models.BooleanField(default=False)
     document = models.FileField(upload_to='media',blank=True,null=True,help_text='Pls. upload the quotaion here')
     created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='q_creator',blank=True,null=True)
-    misc_cost = models.DecimalField(default=0,max_digits=10,decimal_places=2)
+    misc_cost = models.DecimalField(default=0,max_digits=10,decimal_places=2)    
     quotation_value = models.DecimalField(default=0,max_digits=30,decimal_places=2)
     quotation_quantity = models.DecimalField(default=0,max_digits=20,decimal_places=2)
     balance_quantity = models.DecimalField(max_digits=20,decimal_places=2,blank=True,null=True)
@@ -75,7 +75,7 @@ class Quotation_Items(models.Model):
     
 class Purchase_Order(models.Model):
     transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE)
-    business = models.ForeignKey(Business,on_delete=models.CASCADE,default=2)    
+    business = models.ForeignKey(Business,on_delete=models.CASCADE,default=1)    
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE,related_name='po_unit')    
     quotation = models.ForeignKey(Quotation, on_delete=models.CASCADE,related_name='quote')
     po_number = models.CharField(max_length=100, blank=True,null=True)
@@ -84,6 +84,7 @@ class Purchase_Order(models.Model):
     tax = models.DecimalField(max_digits=20,decimal_places=2,default=0)
     po_value = models.DecimalField(max_digits=40,decimal_places=2,default=0)
     freight = models.ForeignKey(Freight,on_delete=models.CASCADE,blank=True,null=True,verbose_name='Freight_Rule')
+    service = models.ForeignKey(Service_Contracts,on_delete=models.CASCADE,blank=True,null=True,verbose_name='Clearance_Charges_Rule Only import transaction')
     inr_value = models.DecimalField(max_digits=40,decimal_places=2,default=0)    
     balance_quantity= models.DecimalField(max_digits=20,decimal_places=2,default=0)    
     approved = models.BooleanField(default=False) 
@@ -116,7 +117,7 @@ class Purchase_Order_Items(models.Model):
     rate = models.DecimalField(max_digits=10,decimal_places=2,blank=True,null=True)
     value = models.DecimalField(max_digits=20,decimal_places=2,editable=False)
     inr_value = models.DecimalField(max_digits=30,decimal_places=2,default=0)
-    balance_quantity = models.DecimalField(max_digits=20,decimal_places=2,editable=False,default=0)  
+    balance_quantity = models.DecimalField(max_digits=20,decimal_places=2,default=0)  
     vat = models.DecimalField(max_digits=20,decimal_places=2,default=0)    
     cst = models.DecimalField(max_digits=20,decimal_places=2,default=0)
     cgst = models.DecimalField(max_digits=30,decimal_places=2,default=0)
@@ -209,7 +210,7 @@ class Gate_Entry(models.Model):
             super().save(*args, **kwargs)
 
 class Vehicle_Unloading_Report(models.Model):
-    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE,default=22)
+    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE)
     transaction_number = models.CharField(max_length=20)
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)
     gate_entry = models.OneToOneField(Gate_Entry,on_delete=models.CASCADE)
@@ -296,7 +297,8 @@ class Mrn_Items(models.Model):
     sgst_freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
     igst_freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
     custom_duty = models.DecimalField(max_digits=50,decimal_places=2,default=0)
-    excise_levies = models.DecimalField(max_digits=50,decimal_places=2,default=0)    
+    excise_levies_import = models.DecimalField(max_digits=50,decimal_places=2,default=0)    
+    excise_levies_export = models.DecimalField(max_digits=50,decimal_places=2,default=0)    
     custom_clearance = models.DecimalField(max_digits=50,decimal_places=2,default=0)
     landed_cost = models.DecimalField(max_digits=50,decimal_places=2,default=0)
     stock_location = models.ForeignKey(Unit_Sub_Location,on_delete=models.CASCADE,blank=True,null=True)
@@ -304,11 +306,40 @@ class Mrn_Items(models.Model):
     def __str__(self):
         return f'{self.item} --{self.actual_quantity}'
     
+class Supplier_Invoice(models.Model):
+    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE,default=1)    
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)    
+    invoice_number = models.CharField(max_length=100, blank=True,null=True)
+    invoice_date = models.DateField(auto_now_add=True)    
+    invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    approved = models.BooleanField(default=False)
+    is_paid = models.BooleanField(default=False)    
+    approver = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True,related_name='invoice_approver')
+    approval_date = models.DateField(blank=True,null=True)
     
+    def __str__(self):
+        return f'{self.invoice_number} --{self.invoice_date}--{self.invoice_value}'
+    
+class Receipt_Not_Vouchered(models.Model):
+    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE) 
+    transaction_number = models.CharField(max_length=30)
+    transaction_date = models.DateField(auto_now_add=True)   
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE)
+    supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE,related_name='receipt_supplier')    
+    invoice_number = models.CharField(max_length=100, blank=True,null=True)
+    invoice_date = models.DateField()    
+    invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    approved = models.BooleanField(default=False)       
+    approver = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True,related_name='receipt_approver')
+    approval_date = models.DateField(blank=True,null=True)
+    account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='receipt_account')
+    
+    def __str__(self):
+        return f'{self.invoice_number} --{self.invoice_date}--{self.invoice_value}'    
         
 
 class Quality_Check(models.Model):
-    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE,default=21)
+    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE)
     # transaction_number = models.CharField(max_length=30)
     gate_entry = models.ForeignKey(Gate_Entry,on_delete=models.CASCADE)
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)

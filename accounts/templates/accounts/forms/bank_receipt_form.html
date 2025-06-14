@@ -1,0 +1,78 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<div class="container">
+    <center><h2 class ='text-warning'>Bank Receipt Voucher</h2></center>
+    <form method="post" class="form-horizontal" id="bank-payment-form">
+        {% csrf_token %}
+        
+        <fieldset class="form-group">
+            <center><legend class = 'text-primary'>Bank Details</legend></center>
+            <div class="row">
+                <div class="col-md-6">{{ form.account_chart|as_crispy_field }}</div>
+                <div class="col-md-6">
+                    {% comment %} <label for="transaction-amount">Transaction Amount</label> {% endcomment %}
+                    <div class="col-md-4" id='transaction-amount'>{{ form.transaction_amount|as_crispy_field }}</div>
+                </div>
+            </div>
+        </fieldset>
+        
+        <fieldset class="form-group" id="transaction-entries">
+            <legend>Transaction Details</legend>
+            <div class="entry row">
+                <div class="col-md-12">{{ form.other_account|as_crispy_field }}</div>
+                <div class="col-md-12">{{ form.unit|as_crispy_field }}</div>
+                <div class="col-md-6">{{ form.credit_amount|as_crispy_field }}</div>
+                <div class="col-md-6">{{ form.reference|as_crispy_field }}</div>
+            </div>
+        </fieldset>
+        
+        <div class="d-flex gap-3 mt-3 justify-content-center">
+            <button type="submit" class="btn btn-primary" id="save-btn" disabled>Save</button>
+            <button type="button" class="btn btn-primary" id="add-more">Add More</button>
+        </div>
+    </form>
+</div>
+
+<script>
+    document.getElementById('add-more').addEventListener('click', function() {
+        let formset = document.querySelector('.entry');
+        let newForm = formset.cloneNode(true);
+
+        // Clear input values in the cloned form
+        newForm.querySelectorAll('input').forEach(input => input.value = '');
+        
+        // Append new row to form
+        document.getElementById('transaction-entries').appendChild(newForm);
+
+        // Attach event listener to new credit_amount field
+        attachEventListeners(newForm);
+        
+        updateSaveButton(); // Recalculate button state
+    });
+
+    function updateSaveButton() {
+        let transactionAmount = parseFloat(document.querySelector("input[name='transaction_amount']").value) || 0;
+        let totalAmount = 0;
+
+        document.querySelectorAll("input[name='credit_amount']").forEach(input => {
+            totalAmount += parseFloat(input.value) || 0;
+        });
+
+        document.getElementById('save-btn').disabled = (totalAmount !== transactionAmount);
+    }
+
+    function attachEventListeners(entry) {
+        entry.querySelector("input[name='credit_amount']").addEventListener('input', updateSaveButton);
+    }
+
+    // Attach listeners on page load
+    document.querySelector("input[name='transaction_amount']").addEventListener('input', updateSaveButton);
+    document.querySelectorAll("input[name='credit_amount']").forEach(input => {
+        input.addEventListener('input', updateSaveButton);
+    });
+</script>
+
+{% endblock %}

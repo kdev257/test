@@ -10,22 +10,31 @@
   </head>
   <body>
       {% block navbar %}
-        {% include "inventory/navbar.html" %}
+      {% include "inventory/navbar.html" %}
       {% endblock navbar %}
    <div class="container">
       <div class="row">
-        {% comment %} <div class=".col-sm-* .col-md-* .col-lg-*"> {% endcomment %}
-          {% if messages %}
-                <div class="messages">
-                  {% for message in messages %}
-                    <div class="alert {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %} alert-dismissible fade show" role="alert">
-                      {{ message }}
-                      <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                    </div>
-                  {% endfor %}
+        <div class=".col-sm-* .col-md-* .col-lg-*">
+            {% if messages %}
+              <div class="messages">
+                {% for message in messages %}
+                <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% else %}alert-info{% endif %}" role="alert">
+                  <strong>{{ message.tags|capfirst }}:</strong> {{ message }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                 </div>
-              {% endif %}
-               
+                {% endfor %}
+              </div>
+            {% endif %}
+                </div>
+              {% comment %} {% endif %} {% endcomment %}
+                <div class="d-flex justify-content-end">
+                {% if user.is_authenticated %}
+                  <button class="btn btn-success"><span class="text-warning me-2">Welcome, {{ user.username }}!</span></button>
+                  <a href="{% url 'logout' %}" class="btn btn-success">Logout</a>
+                {% else %}
+                  <a href="{% url 'employee_profile' %}" class="btn btn-success">Login</a>
+                {% endif %}
+                </div>
             {% block main-content %} 
                      
                   

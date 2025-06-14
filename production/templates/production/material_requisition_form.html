@@ -1,0 +1,10 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+    <form method= POST>
+        {% csrf_token %}
+        {{form|crispy}}
+        <center><button type="submit" class="btn btn-primary">Submit</button></center>
+    </form>
+{% endblock main-content %}

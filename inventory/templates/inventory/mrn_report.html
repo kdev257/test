@@ -1,0 +1,71 @@
+<!-- templates/report/mrn_report.html -->
+{% include "inventory/index.html" %}
+{% load crispy_forms_tags %}
+<!DOCTYPE html>
+<html>
+    {% block main-content %}
+<head>
+    <title>MRN Report</title>
+    <link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/jquery.dataTables.min.css">
+</head>
+<body>
+    <h2 class='text-warning text-center'>Material Receipt Note Report</h2><br><br>
+    <h3 class='text-center'>Filter by:</h3> <br>
+    {% if filter.form.non_field_errors %}
+        <div class="alert alert-danger">
+            {{ filter.form.non_field_errors }}
+        </div>
+    {% endif %}
+    
+    {% if filter.qs.count == 0 %}
+        <div class="alert alert-info text-center">
+            No records found for the selected filters.
+        </div>
+    {% endif %}
+    <form method="get" style="display: flex; align-items: center; gap: 10px; font-size: 30px; margin-bottom: 20px;">
+        <style>
+            form input, form select {
+                height: 50px !important;
+            }
+        </style>
+        {% for field in filter.form.visible_fields %}
+            <div style="margin-bottom: 0;">
+                {{ field.label_tag }} {{ field }}
+            </div>
+        {% endfor %}
+        <button type="submit" class='btn btn-lg btn-primary' style="height: 50px;">Filter</button>
+    </form>
+
+    <table id="mrnTable" 'style=inline; width: 100%;' class="display">
+        <thead>
+            <tr>
+                <th>MRN No</th>
+                <th>Supplier</th>
+                <th>Unit</th>
+                <th>Transaction Date</th>
+                <th>Approval</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in filter.qs %}
+            <tr>
+                <td>{{ item.mrn_number }}</td>
+                <td>{{ item.gate_entry.po.quotation.supplier }}</td>
+                <td>{{ item.unit }}</td>
+                <td>{{ item.mrn_date }}</td>
+                <td>{{ item.quality_approval }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+    <script>
+        $(document).ready(function() {
+            $('#mrnTable').DataTable();
+        });
+    </script>
+</body>
+</html>
+{% endblock main-content %}

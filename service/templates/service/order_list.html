@@ -1,0 +1,46 @@
+{% extends "inventory/index.html" %}
+  {% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Service Order{% endblock %}
+{% block main-content %}
+
+<h1>Service Order</h1>
+<a href="{% url 'service_order_create' %}">Create New Order</a>
+<table class="table table-striped">
+  <thead>
+    <tr>
+      <th>Transaction Number</th>
+      <th>Supplier</th>
+      <th>INR Amount</th>
+      <th>Status</th>      
+      <th>Actions</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for order in orders %}
+      <tr>
+        <td>{{ order.transaction_number }}</td>
+        <td>{{ order.quotation.supplier.sp_user.supplier_name}}</td>
+        <td>{{ order.inr_amount}}</td>
+        <td>{{ order.status }}</td>
+        <td>
+          <a href="{% url 'service_order_update' order.pk %}">Edit</a> |
+          <a href="{% url 'service_order_delete' order.pk %}">Delete</a> |
+          <a href="{% url 'service_order_approve' order.pk %}">Approve</a> |
+          <a href="{% url 'service_order_status_update' order.pk %}">Update Status</a>|
+          <a href="{% url 'service_invoice' %}">Book Invoice</a>
+        </td>
+      </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% comment %} <ul>
+  {% for order in orders %}
+    <li>{{ order.transaction_number }} - {{ order.quotation.supplier }}
+      <a href="{% url 'service_order_update' order.pk %}">Edit</a> |
+      <a href="{% url 'service_order_delete' order.pk %}">Delete</a> |
+      <a href="{% url 'service_order_approve' order.pk %}">Approve</a>
+    </li>
+  {% endfor %}
+</ul> {% endcomment %}
+{% endblock %}

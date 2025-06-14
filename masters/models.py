@@ -5,10 +5,19 @@ from django.core.exceptions import ValidationError
 # from sale.models import *
 from django.utils import timezone
 from django.core.validators import MinValueValidator
+from datetime import date
+
+class City(models.Model):
+    city_name = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return f'{self.city_name}'
 
 class Currency(models.Model):
     name = models.CharField(max_length=20)
     conversion_rate = models.DecimalField(max_digits=10,decimal_places=2)
+    date = models.DateField(blank=True,null=True)  
+    
     
     def __str__(self):
         return f'{self.name} - {self.conversion_rate}'
@@ -69,6 +78,7 @@ class User(AbstractUser):
     )
     company = models.ForeignKey(Company,on_delete=models.CASCADE,related_name='user_company',blank=True,null=True)
     name = models.CharField(max_length=200,default="")
+    account = models.OneToOneField('Account_Chart',on_delete=models.CASCADE,related_name='user_account',blank=True,null=True)
     user_type = models.CharField(choices=USER_TYPE_CHOICES,max_length=20)    
     is_approved = models.BooleanField(default=False)
     
@@ -79,18 +89,21 @@ class User(AbstractUser):
 
 
 class User_Roles(models.Model):
-    DEPARTMENT_CHOICES=(
-        ('Finance','Finance'),
-        ('Marketing','Marketing'),
-        ('Sale','Sale'),
-        ('Supply_Chain','Supply_Chain'),
-        ('Procurement','Procurement'),
-        ('Store','Store'),
-        ('Quality_Control','Quality_Control'),
-        ('Security','Security'),
-        ('Manufacturing','Manufacturing')
-        
-    )    
+    DEPARTMENT_CHOICES = (
+        ('Finance', (
+            ('Finance_Control', 'Finance_Control'),
+            ('Finance_Tax', 'Finance_Tax'),
+        )),
+        ('Marketing', 'Marketing'),
+        ('Sale', 'Sale'),
+        ('Supply_Chain', 'Supply_Chain'),
+        ('Procurement', 'Procurement'),
+        ('Store', 'Store'),
+        ('Quality_Control', 'Quality_Control'),
+        ('Security', 'Security'),
+        ('Dispatch', 'Dispatch'),
+        ('Manufacturing', 'Manufacturing'),
+    )
     user_id = models.OneToOneField(User,on_delete=models.CASCADE)
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE)
     department= models.CharField(choices=DEPARTMENT_CHOICES,max_length=100)
@@ -208,22 +221,60 @@ class Account_Chart(models.Model):
         
         super().save(*args, **kwargs)
 
+class AccountingYear(models.Model):
+    type_choices = [
+        ('financial', 'Financial Year'),
+        ('reporting', 'Reporting Year'),
+    ]
+    name = models.CharField(max_length=50)  # e.g., "2024–2025"
+    start_date = models.DateField()
+    end_date = models.DateField()
+    is_current = models.BooleanField(default=False)   
+    year_type = models.CharField(max_length=20, choices=type_choices, default='financial')
+
+    def __str__(self):
+        return f"{self.name} ({self.year_type})"
+
+    class Meta:
+        unique_together = ('start_date', 'end_date', 'year_type')
+
+
+class UnitAccountBalance(models.Model):
+    account_chart = models.ForeignKey(Account_Chart, on_delete=models.CASCADE)
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE)
+    year = models.ForeignKey(AccountingYear, on_delete=models.CASCADE)
+    opening_balance = models.DecimalField(max_digits=30, decimal_places=2, default=0)
+    opening_balance_date = models.DateField(default=date(2000, 1, 1))
+    closing_balance_date = models.DateField(default=date(2000, 3, 31))
+    debit_amount = models.DecimalField(max_digits=30, decimal_places=2, default=0)
+    credit_amount = models.DecimalField(max_digits=30, decimal_places=2, default=0)
+    closing_balance = models.DecimalField(max_digits=30, decimal_places=2, default=0)
+    last_updated = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        unique_together = ('account_chart', 'unit', 'year')
+        
+    def save(self, *args, **kwargs):
+        # Automatically assign date range from accounting year
+        self.opening_balance_date = self.year.start_date
+        self.closing_balance_date = self.year.end_date
+        super().save(*args, **kwargs)
     
-    
-#     def __str__(self):        
-#         return f'User: {self.name}, Type: {self.user_type}'
+        
         
 class Supplier_Profile(models.Model):
     company = models.ForeignKey(Company, on_delete= models.CASCADE,related_name='company_supplier',default=1)
     user = models.OneToOneField(User,on_delete=models.CASCADE,related_name='sp_user')
     supplier_name = models.CharField(max_length=100)
-    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,related_name='sp_unit')     
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,related_name='sp_unit')  
+    cost_center = models.ForeignKey('Sub_Cost_Center',on_delete=models.CASCADE,related_name='supllier_user_department',verbose_name='User Department')   
     phone = models.CharField(max_length=20)
     address = models.TextField()
     city = models.CharField(max_length=100)
     state = models.ForeignKey(State,on_delete=models.CASCADE)
     is_msme = models.BooleanField(default=False)
-    zip = models.CharField(max_length=11)    
+    zip = models.CharField(max_length=11) 
+    currency = models.ForeignKey(Currency,on_delete=models.CASCADE,default=1)  
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     created_by  = models.ForeignKey(User,on_delete=models.CASCADE,related_name='Supplier_user')
@@ -241,6 +292,7 @@ class Transaction_Type(models.Model):
 
 class DOA(models.Model):
     level = models.CharField(max_length=100)  # e.g., "Level 1", "Level 2", "Head Office"
+    cost_center = models.ForeignKey('Sub_Cost_Center', on_delete=models.CASCADE,related_name='doa_cost_center',blank=True,null=True)
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE)  # e.g., "Quotation", "Purchase Order"
     monetary_limit = models.DecimalField(max_digits=12, decimal_places=2)
@@ -268,9 +320,14 @@ class Brand(models.Model):
     spirit_class = models.ForeignKey(Spirit_Class, verbose_name="Class", on_delete=models.CASCADE, related_name='brands')
     variant = models.ForeignKey(Brand_Variant, on_delete=models.CASCADE, related_name='brands')
     wip_blend_account =models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_blend_account',verbose_name='Process Stock in Proceesing Tank')
-    wip_finished_blend= models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_finished_blend_account',verbose_name='Finished_Blend in Holding Tank')
+    finished_blend_account= models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_finished_blend_account',verbose_name='Finished_Blend in Holding Tank')
     wip_account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_account',verbose_name='Stock at Bottling Tank Shop Floor')
     finished_goods_account =  models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='brand_finished_goods_account',verbose_name='Finished Goods Accout')
+    wip_blend_item = models.ForeignKey('Item',on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_blend_item',verbose_name='WIP Blend Item')
+    finished_blend_item = models.ForeignKey('Item',on_delete=models.CASCADE,blank=True,null=True,related_name='brand_finished_blend_item',verbose_name='Finished Blend Item')
+    # wip_item = models.ForeignKey('Item',on_delete=models.CASCADE,blank=True,null=True,related_name='brand_wip_item',verbose_name='WIP Item')
+    finished_goods_item = models.ForeignKey('Item',on_delete=models.CASCADE,blank=True,null=True,related_name='brand_finished_goods_item',verbose_name='Finished Goods Item')
+    
     
     def __str__(self):
         return f'{self.brand_name}'
@@ -340,14 +397,27 @@ class Gst_On_Goods(models.Model):
     rate = models.DecimalField(max_digits=7,decimal_places=2,default=0)
     account= models.ForeignKey(Account_Chart,on_delete=models.CASCADE,related_name='goods_gst_account')
     
+    class Meta:
+        verbose_name_plural = 'GST On Goods'
+        indexes = [ models.Index(fields=['item']) ] # Explicitly adds an index
+    
     def __str__(self):
         return f'{self.item} - {self.tax_name} {self.rate}'
 
+class Service_Category(models.Model):
+    category_name = models.CharField(max_length=100)
+    
+    def __str__(self):
+        return f'{self.category_name}'
+    
+class Service_Sub_Category(models.Model):
+    sub_category_name = models.CharField(max_length=100)
+    service_category = models.ForeignKey(Service_Category, on_delete=models.CASCADE, related_name='service_sub_category')
+    
+    def __str__(self):
+        return f'{self.sub_category_name}'
+
 class Service(models.Model):
-    NATURE_CHOICES = (
-        ('Intra_State','Intra-State'),
-        ('Inter_State','Inter_State'),
-    )
     PAYMENT_CHOICES =(
         ('FCM','FCM'),
         ('RCM','RCM'),
@@ -356,13 +426,14 @@ class Service(models.Model):
         ('Specified','Specified'),
         ('Non-Specified','Non-Specified')
     )
+    
     sac_code = models.CharField(max_length=6)
-    service_name = models.CharField(max_length=50)
-    nature_of_supply = models.CharField(choices=NATURE_CHOICES,max_length=30,default='Inter_State')
+    service_name = models.CharField(max_length=255)    
     service_type = models.CharField(max_length=30,choices=SERVICE_TYPE_CHOICES,default='Non-Specified')
+    service_sub_category = models.ForeignKey(Service_Sub_Category, on_delete=models.CASCADE, related_name='service_sub_category',verbose_name='Service Sub Category')
     gst_rate = models.DecimalField(max_digits=10,decimal_places=2,default=18)
     payment_mode = models.CharField(max_length=20, choices=PAYMENT_CHOICES,default='FCM')
-    
+    account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,related_name='service_account',)    
     
     def __str__(self):
         return f'{self.sac_code} - {self.service_name}'
@@ -381,7 +452,7 @@ class Custom_Duty(models.Model):
         return f'{self.hsn} - {self.item} - {self.tax_name} {self.rate}'
 
 class State_Excise_levies(models.Model):     
-    tax_name = models.CharField(max_length=30) 
+    tax_name = models.CharField(max_length=100) 
     
     def __str__(self):
         return (self.tax_name)   
@@ -413,28 +484,47 @@ class State_Tax_on_Sale_Of_Goods(models.Model):
         return f'{self.state} - {self.item} - {self.tax_name} {self.rate}'
 
 
+class Formula(models.Model):
+    formula = models.CharField(max_length=200)
+    
+    def __str__(self):
+        return f'({self.formula})'
 
-# class State_Excise_Levies(models.Model):
-#     LEVY_METHOD_CHOICES =(
-#         ('formula','formula'),
-#         ('slab','slab'),
-#     )
-#     PAYEE_CHOICES=(
-#         ('Company','Company'),
-#         ('Wholesale','Wholesale'),
-#         ('Retailer','Retailer'),
-#     )
-#     state = models.ForeignKey(State,on_delete=models.CASCADE,related_name='sbsel_state')
-#     levy_name  = models.ForeignKey(,on_delete=models.CASCADE,related_name='sbsel_levies')
-#     levy_rate = models.FloatField(blank=True,null=True)
-#     levy_unit= models.ForeignKey(Unit_of_Measurement,on_delete=models.CASCADE,blank=True,null=True)
-#     levy_formula = models.CharField(max_length=255,blank=True,null=True,default="")
-#     slab = models.CharField(choices=LEVY_METHOD_CHOICES,max_length=255,default="")
-#     payee = models.CharField(max_length=20,choices=PAYEE_CHOICES,default='Company')    
-#     created = models.DateTimeField(auto_now_add=True)
-#     updated = models.DateTimeField(auto_now=True)
-#     created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='sbsel_created_by')
+# class Subtotal(models.Model):
+#     subtotal_name = models.CharField(max_length=255)
+#     state = models.ForeignKey(State,on_delete=models.CASCADE,related_name='subtotal_state')
+#     formula = models.ForeignKey(Formula,on_delete=models.CASCADE,related_name='subtotal_formula')
+    
+#     def __str__(self):
+#         return f"{self.subtotal_name}--{self.state}--{self.formula}"
 
+class State_Excise_Levies_Rate(models.Model):
+    LEVY_METHOD_CHOICES =(
+        ('formula','formula'),
+        ('slab','slab'),
+    )
+    PAYEE_CHOICES=(
+        ('Company','Company'),
+        ('Wholesale','Wholesale'),
+        ('Retailer','Retailer'),
+    )
+    state = models.ForeignKey(State,on_delete=models.CASCADE,related_name='levy_state')
+    levy_name  = models.ForeignKey(State_Excise_levies,on_delete=models.CASCADE,related_name='state_levy_name')
+    levy_rate = models.FloatField(blank=True,null=True)
+    levy_unit= models.ForeignKey(Unit_of_Measurement,on_delete=models.CASCADE,related_name='state_levy_unit')
+    levy_formula = models.ForeignKey(Formula,on_delete=models.CASCADE,related_name='levy_formula')
+    levy_amount = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    slab = models.CharField(choices=LEVY_METHOD_CHOICES,max_length=255)
+    payee = models.CharField(max_length=20,choices=PAYEE_CHOICES)
+    account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,related_name='account_of_excise_levy')
+    valid_from = models.DateField()
+    valid_till = models.DateField()    
+    created = models.DateTimeField()
+    modified = models.DateTimeField()
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='levy_created_by')
+
+    def __str__(self):
+        return f"{self.levy_name} {self.levy_rate} {self.levy_unit} --{self.state}"
 
 
     
@@ -454,7 +544,8 @@ class Supplier(models.Model):
         ('Overseas','Overseas'),
         
     ) 
-    unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='unit_suppliers')
+    # unit = models.ForeignKey(Unit, on_delete=models.CASCADE, related_name='unit_suppliers')
+    user = models.OneToOneField(User,on_delete=models.CASCADE,related_name='supplier_user',blank=True,null=True)
     supplier_name = models.CharField(max_length=200)
     assessee_type = models.CharField(max_length=50,choices=ASSESSEE_TYPE,default="")
     location = models.CharField(max_length=20,choices=LOCATION_CHOICES,default='India')
@@ -462,6 +553,7 @@ class Supplier(models.Model):
     related = models.BooleanField(default=False)
     gstin = models.CharField(max_length=15,default="")
     supplier_state = models.ForeignKey(State,on_delete=models.CASCADE,default=1)
+    supplier_item = models.ForeignKey(Item_Category,on_delete=models.CASCADE,related_name='supplier_item',blank=True,null=True)    
     account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,default=1)    
         
     def __str__(self):
@@ -481,12 +573,12 @@ class Supplier_Service(models.Model):
     
     
     def __str__(self):
-        return f"{self.supplier} - {self.service} - {self.levy_mode}"
+        return f" {self.service} - {self.levy_mode}"
 
 class Vehicle_Type(models.Model):    
     vehicle_type = models.CharField(max_length=50)
     vehicle_capacity = models.DecimalField(max_digits=10, decimal_places=2)
-    Unit_of_Measurement = models.ForeignKey(Unit_of_Measurement, on_delete=models.CASCADE, related_name='vehicle_types')
+    Unit_of_Measurement = models.ForeignKey(Unit_of_Measurement, on_delete=models.CASCADE, related_name='vehicle_uom')
     
     def __str__(self):
         return f'{self.vehicle_type}-{self.vehicle_capacity}'
@@ -509,6 +601,19 @@ class TDS(models.Model):
     
     def __str__(self):
         return f'{self.section} | {self.classification}   | {self.rate}'
+
+class TCS_Head(models.Model):
+    head = models.CharField(max_length=100)
+    
+
+class TCS(models.Model):    
+    section = models.CharField(max_length=20)
+    transaction_type = models.OneToOneField(Transaction_Type,on_delete=models.CASCADE,related_name='tcs_transaction_type')
+    head = models.OneToOneField(TCS_Head,on_delete=models.CASCADE,related_name='tcs_head')
+    rate = models.DecimalField(max_digits=5,decimal_places=2)
+    
+    def __str__(self):
+        return f'{self.section} | {self.transaction_type.transaction_name}   | {self.rate}'
     
 class Lower_TDS(models.Model):
     DEDUCTEE_CHOICES=(
@@ -520,7 +625,7 @@ class Lower_TDS(models.Model):
         ('Trust','Trust'),
         ('Other','Other'),
     )
-    supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE,blank=True,null=True)
+    supplier = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True)
     section = models.ForeignKey(TDS,on_delete=models.CASCADE,blank=True,null=True)
     classification = models.CharField(max_length=100,default="")
     sub_classification = models.CharField(max_length=100,default="")
@@ -561,7 +666,7 @@ class Freight(models.Model):
        
     
     def __str__(self):
-        return f'{self.supplier} --{self.origin_city}'
+        return f'{self.supplier} --{self.origin_city}--{self.destinaton_city}'
 
 
 
@@ -654,7 +759,7 @@ class Unit_Sub_Location(models.Model):
     
 
     def __str__(self):
-        return f"{self.sub_loc_name} - {self.closing_quantity}"
+        return f"{self.sub_loc_name} - {self.closing_quantity} --{self.unit}"
     
     def save(self, *args, **kwargs):
         if not self.pk:
@@ -719,3 +824,63 @@ class Service_Contracts(models.Model):
     
     def __str__(self):
         return f'{self.supplier} -- {self.service} -- {self.delivarable_name} --{self.service_charge}'
+
+
+class Cost_Center(models.Model):
+    cost_center_name = models.CharField(max_length=100)
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1) 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='cost_center_created_by')
+    
+    def __str__(self):
+        return self.cost_center_name
+    
+class Sub_Cost_Center(models.Model):
+    cost_center = models.ForeignKey(Cost_Center,on_delete=models.CASCADE,related_name='sub_cost_center')
+    sub_cost_center_name = models.CharField(max_length=100)
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE) 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='sub_cost_center_created_by')
+    
+    def __str__(self):
+        return self.sub_cost_center_name
+
+# start the code for the sale module
+
+class Customer(models.Model):
+    customer_name = models.CharField(max_length=200)
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE, default=1) 
+    account = models.OneToOneField(Account_Chart,on_delete=models.CASCADE,related_name='customer_account')   
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,related_name='customer_created_by')
+    
+    def __str__(self):
+        return self.customer_name
+    
+# customer profile
+class Customer_Profile(models.Model):
+    customer = models.ForeignKey(Customer,on_delete=models.CASCADE)
+    user = models.ForeignKey(User,on_delete=models.CASCADE)
+    user_type = models.ForeignKey(User_Roles,on_delete=models.CASCADE)
+    gstin = models.CharField(max_length=15)
+    vat_no = models.CharField(max_length=50,blank=True,null=True)
+    pan_no = models.CharField(max_length=50,blank=True,null=True)
+    tan_no = models.CharField(max_length=50,blank=True,null=True)
+    license_no = models.CharField(max_length=50,blank=True,null=True)    
+    address = models.TextField()
+    city = models.CharField(max_length=100)
+    state = models.ForeignKey(State,on_delete=models.CASCADE)
+    zip = models.CharField(max_length=6)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField()
+    contact_name = models.CharField(max_length=100)
+    phone = models.CharField(max_length=20)
+    email = models.EmailField()
+    kyc = models.FileField(upload_to='media',blank=True,null=True)
+    
+    def __str__(self):
+        return f'{self.customer} - {self.user}'
+    

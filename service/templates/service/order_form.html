@@ -1,0 +1,12 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Service Order Form{% endblock %}
+{% block main-content %}
+<center><h1 class='text-warning'>Create/Edit Service Order</h1></center><br><br>
+<form method="post">
+    {% csrf_token %}
+    {{ form|crispy }}
+    <center><button class='btn btn-primary' type="submit">Save</button></center>
+</form>
+{% endblock %}

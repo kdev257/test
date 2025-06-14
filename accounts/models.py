@@ -10,8 +10,7 @@ from django.utils import timezone
 
 class Inv_Transaction(models.Model):  
     
-    TRANSACTION_CAT= [
-        ('Select', 'Select'),
+    TRANSACTION_CAT= [        
         ('Debit', 'Debit'),
         ('Credit', 'Credit'),        
     ]
@@ -65,6 +64,50 @@ class Overheads(models.Model):
     
     def __str__(self):
         return f"{self.name}--{self.type}"
+
+
+# from django.db import models
+# from django import forms
+# from django.forms import inlineformset_factory
+
+# # Account model to categorize accounts from Account Chart
+# class Account(models.Model):
+#     name = models.CharField(max_length=255)
+#     sub_category = models.CharField(max_length=50)  # Sub-category classification from Account Chart
+
+#     def __str__(self):
+#         return self.name
+
+# # Transaction Header Model
+# class Transaction(models.Model):
+#     TRANSACTION_TYPES = [
+#         ('bank_payment', 'Bank Payment'),
+#         ('bank_receipt', 'Bank Receipt'),
+#         ('cash_payment', 'Cash Payment'),
+#         ('cash_receipt', 'Cash Receipt'),
+#         ('debit_note', 'Debit Note'),
+#         ('credit_note', 'Credit Note')
+#     ]
+#     transaction_no = models.CharField(max_length=50, unique=True)
+#     transaction_date = models.DateField()
+#     transaction_type = models.CharField(max_length=20, choices=TRANSACTION_TYPES)
+#     description = models.TextField(blank=True, null=True)
+#     total_amount = models.DecimalField(max_digits=12, decimal_places=2)
+
+#     def __str__(self):
+#         return f"{self.transaction_no} - {self.transaction_type}"
+
+# # Transaction Detail Model (Expandable rows)
+# class TransactionDetail(models.Model):
+#     transaction = models.ForeignKey(Transaction, on_delete=models.CASCADE, related_name='details')
+#     account = models.ForeignKey(Account_Chart, on_delete=models.PROTECT)
+#     debit_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+#     credit_amount = models.DecimalField(max_digits=12, decimal_places=2, blank=True, null=True)
+#     remarks = models.TextField(blank=True, null=True)
+
+#     def __str__(self):
+#         return f"{self.account.name} - Debit: {self.debit_amount} / Credit: {self.credit_amount}"
+
 
 
     

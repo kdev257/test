@@ -1,5 +1,5 @@
 <hr class='text-warning text-lg'> 
-<center><h3 class='text-warning'>Generate MRN</h3></center>
+<center><h3 class='text-warning'>Despatch Employees Workspace</h3></center>
 
 <div class="container-fluid">
     <div class="row vh-100">
@@ -10,14 +10,14 @@
             </div>
             <ul class="nav flex-column">
                 <li class="nav-item mb-2">
-                    <a href="{% url 'receipts_pending_mrn' %}" class="nav-link text-white">Generate MRN <span style="color: red;">{{ mrn_count }}</span></a>
+                    <a href="{% url 'state_list' %}" class="nav-link text-white">Create Cost Card</a>
                 </li>
                 <li class="nav-item mb-2">
-                    <a href="{% url 'gate_entry_register' %}" class="nav-link text-white">Gate Entry Register</a>
+                    <a href="{% url 'permit_entry' %}" class="nav-link text-white">Permit Entry</a>
                 </li>
                 <li class="nav-item mb-2">
-                    <a href="{% url 'journal_entry' %}" class="nav-link text-white">Create Journal Entry</a>
-                </li>
+                    <a href="{% url 'permit_pending_sale_invoice' %}" class="nav-link text-white">Pending Permit List <span class = 'text-danger'>({{permit_count}})</span></a>
+                </li>                
                 <li class="nav-item mb-2">
                     <a href="#" class="nav-link text-white">Tasks</a>
                 </li>
@@ -46,7 +46,7 @@
                 </div>
             </header>
 
-            <!-- Gate Entry Table -->
+            {% comment %} <!-- Gate Entry Table -->
             <table class="table table-hover">
                 <thead>
                     <tr>
@@ -94,7 +94,7 @@
                         </tr>
                     {% endif %}
                 </tbody>
-            </table>
+            </table> {% endcomment %}
         </main>
     </div>
 </div>
