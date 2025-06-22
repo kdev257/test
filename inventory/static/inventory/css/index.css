@@ -1,26 +1,26 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
-/* form{ */
-    /* border: 2px solid #eb6b6b; Black border */
-    /* padding: 8px; */
-    /* border-radius: 4px; Optional: Rounded corners */
-    /* font-size: 16px; Match the font size with the form */
-/* } */
-/* input[type="number"], input[type="text"],input[type="date"], select, textarea { */
-    /* width: 500px; */
-    /* padding: 8px; Add some padding for better appearance */
-    /* border: 2px solid #000 !important; Ensure the border is applied */
-    /* border-radius: 4px; Optional: Rounded corners */
-    /* font-size: 25px; Match the font size with the Django form */
-    /* height: 50px; Match the height with the Django form */
-    /* margin-bottom: 10px; Space between inputs */
-    /* box-sizing: border-box; Ensure padding doesn't affect width/height */
-/* } */
+ form{ 
+      border: 2px solid #eb6b6b; 
+     padding: 8px; 
+     border-radius: 4px; 
+     font-size: 16px; 
+ } 
+ input[type="number"], input[type="text"],input[type="date"], select, textarea { 
+     width: 500px; 
+     padding: 8px;
+     border: 2px solid #000 !important; 
+     border-radius: 4px;
+     font-size: 25px; 
+     height: 50px; 
+     margin-bottom: 10px; 
+     box-sizing: border-box;
+ } 
 body{
     font-family: 'Roboto', sans-serif;
     font-size :25px !important;
     font-weight:normal !important;
-    /* background-color:rebeccapurple; */
+    background-color:rebeccapurple;
     color: aqua;
     display: flex;
     flex-direction: column;

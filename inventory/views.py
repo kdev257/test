@@ -1,8 +1,7 @@
 from django.shortcuts import render,get_object_or_404,redirect
-from masters.models import Landed_Cost_Rule,Unit,Account_Chart,Account_Sub_Category,Account_Category,Account_Sub_Class,Account_Class,TDS,Lower_TDS,Supplier,User,User_Roles,DOA,Transaction_Type,State_Tax_on_Sale_Of_Goods,State_Excise_taxes_On_Goods,Supplier_Service,Custom_Duty,Gst_On_Goods,Service,Currency
-from .models import Purchase_Order,Material_Receipt_Note,Quality_Check,Gate_Entry,Vehicle_Unloading_Report,Freight_Purchase_Order,Vehicle_Unload_Items,Mrn_Items,Receipt_Not_Vouchered
+from masters.models import Account_Chart,User,User_Roles,DOA,Transaction_Type,State_Excise_taxes_On_Goods,Service,Currency
+from .models import Purchase_Order,Material_Receipt_Note,Quality_Check,Gate_Entry,Vehicle_Unloading_Report,Freight_Purchase_Order,Mrn_Items,Receipt_Not_Vouchered
 from accounts.models import Inv_Transaction
-from inventory.models import Tax_Table
 from django.contrib import messages
 from .forms import *
 from django.db import transaction as db_transaction
@@ -21,6 +20,7 @@ from icecream import ic
 # Create your views here.
 def index(request):
     return render(request,'inventory/index.html')
+
 @login_required
 def add_supplier(request):
     unit = request.user.user_roles.unit  
