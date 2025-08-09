@@ -1,0 +1,14 @@
+{% extends "inventory/index.html" %}
+{% block title %}Validate MRN Invoice{% endblock %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% load i18n %}
+{% block main-content %}
+<form method="post">
+    {% csrf_token %}
+    {{form|crispy}}
+    {{ form.non_field_errors }}
+    <button type="submit">Submit</button>
+</form>
+
+{% endblock %}

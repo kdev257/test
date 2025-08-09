@@ -26,9 +26,7 @@
                      <li class="nav-item mb-2">
                             <a href="{% url 'quotation_pending_po_generation' %}" class="nav-link text-white">Quotation Pending Po</a>
                         </li>
-                     {% comment %} <li class="nav-item mb-2">
-                            <a href="{% url 'po_entry' %}" class="nav-link text-white">Generate Purchase Order</a>
-                        </li> {% endcomment %}
+                     
                         <li class="nav-item mb-2">
                             <a href="{% url 'vehicle_awaiting_unloading' %}" class="nav-link text-white">
                                 Vehicles in Factory  
@@ -42,8 +40,15 @@
                             <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Blend Awaiting  Issue <span class='text-danger'>{{blend_awaiting_issue}}</span></a>
                         </li>
                         <li class="nav-item mb-2">
-                        <a href="{% url 'blend_awaiting_issue' %}" class="nav-link text-white">Bottling_Requisition_Pending_Issue <span class='text-danger'>{{bottling_requisition_made}}</span></a>
-                        </li>                     
+                            <a href="{% url 'bottling_awaiting_issue' %}" class="nav-link text-white">Bottling_Material_Pending_Issue <span class='text-danger'>{{bottling_requisition_made}}</span></a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'stock_ledger' %}" class="nav-link text-white">Stock Ledger Report </a>
+                        </li>
+                        <li class="nav-item mb-2">
+                            <a href="{% url 'submit_freight_invoice' %}" class="nav-link text-white">Submit Freight Invoice</a>
+                        </li>
+                                             
                         <li class="nav-item mb-2">
                             <a href="#" class="nav-link text-white">Reports</a>
                         </li>

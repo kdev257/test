@@ -1,0 +1,68 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<div class="container mt-4">
+    <h2>Stock Ledger</h2>
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Transaction Date</th>
+                <th>Transaction Number</th>
+                <th>Transaction Type</th>
+                <th>Unit ID</th>
+                <th>ID</th>
+                 <th>Item ID</th>
+                <th>Item Name</th>
+                <th>Opening Quantity</th>
+                 <th>Opening Rate</th>
+                <th>Opening Value</th>               
+               <th>Receipt Quantity</th>
+                <th>Receipt Rate</th>
+                <th>Receipt Value</th>                
+                <th>Issue Quantity</th>
+                <th>Issue Rate</th>
+                <th>Issue Value</th>
+                 <th>Closing Quantity</th>
+                <th>Closing Value</th>               
+                <th>Closing Rate</th>                
+                <th>Stock Entry ID</th>
+            </tr>
+        </thead>
+        <tbody>
+            
+            {% for entry in stock_ledger %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ entry.transaction_date }}</td>
+                <td>{{ entry.transaction_number }}</td>
+                <td>{{ entry.transaction_type_id }}</td>
+                <td>{{ entry.unit_id }}</td>
+                <td>{{ entry.id }}</td>
+                <td>{{ entry.item_id }}</td>
+                <td>{{ entry.item__item_name }}</td>
+                <td>{{ entry.opening_quantity }}</td>
+                <td>{{ entry.opening_value }}</td>
+                <td>{{ entry.opening_rate }}</td>
+                <td>{{ entry.receipt_quantity }}</td>
+                <td>{{ entry.receipt_rate }}</td>
+                <td>{{ entry.receipt_value }}</td>
+                <td>{{ entry.issue_quantity }}</td>
+                <td>{{ entry.issue_rate }}</td>
+                <td>{{ entry.issue_value }}</td>
+                <td>{{ entry.closing_quantity }}</td>
+                <td>{{ entry.closing_value }}</td>                
+                <td>{{ entry.closing_rate }}</td>
+                <td>{{ entry.stock_entry_id }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+                <td colspan="21" class="text-center">No stock ledger entries found.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

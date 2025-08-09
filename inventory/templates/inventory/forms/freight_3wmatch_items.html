@@ -1,0 +1,51 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block main-content %}
+  <h2 class='text-success text-center'>Match Freight Bill</h2><br><br><br>  
+ <form method="POST">
+    {% csrf_token %}
+    {{ formset.management_form }}
+
+    {% comment %} <div class="container">
+        <div class="row">
+            <div class="col-sm-10">
+            </div>
+        </div>
+    </div>
+    <br><br><br> {% endcomment %}
+
+    <table>
+      <thead>
+        <tr>
+          {% comment %} <th>ID</th> {% endcomment %}
+          <th>MRN</th>
+          <th>Freight</th>
+          <th>CGST</th>
+          <th>SGST</th>
+          <th>IGST</th>
+          <th>Bill_Amount</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for form in formset %}
+          <tr>
+            {% comment %} <td>{{ form.id}}</td> {% endcomment %}
+            <td>{{ form.mrn }}</td>
+            <td>{{ form.freight }}</td> 
+            <td>{{ form.cgst_freight }}</td>
+            <td>{{ form.sgst_freight }}</td>
+            <td>{{ form.igst_freight }}</td>
+            <td>{{ form.actual_freight_amount }}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <br><br><br>
+
+    <center><button type="button" id="add-more">Add Another Row</button>
+    <button type="submit">Submit</button></center>
+  </form> 
+
+  
+{% endblock main-content %}

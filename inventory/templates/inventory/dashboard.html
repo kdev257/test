@@ -1,0 +1,43 @@
+<div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-white bg-primary mb-3">
+                        <div class="card-header">Pending Approvals</div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ pending_approvals_count }}</h5>
+                            <p class="card-text">Tasks awaiting your approval.</p>
+                            <a href="#" class="btn btn-light btn-sm">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-success mb-3">
+                        <div class="card-header">Completed Tasks</div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ completed_tasks_count }}</h5>
+                            <p class="card-text">Tasks you have finished.</p>
+                            <a href="#" class="btn btn-light btn-sm">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-warning mb-3">
+                        <div class="card-header">Overdue Tasks</div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ overdue_tasks_count }}</h5>
+                            <p class="card-text">Tasks past their deadline.</p>
+                            <a href="#" class="btn btn-light btn-sm">View Details</a>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-white bg-info mb-3">
+                        <div class="card-header">Upcoming Deadlines</div>
+                        <div class="card-body">
+                            <h5 class="card-title">{{ upcoming_deadlines_count }}</h5>
+                            <p class="card-text">Tasks due soon.</p>
+                            <a href="#" 
+                            class="btn btn-light btn-sm">View Details</a>
+                        </div>
+                    </div>
+                </div>
+            </div>

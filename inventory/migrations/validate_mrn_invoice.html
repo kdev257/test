@@ -1,0 +1,22 @@
+<form method="post">
+    {% csrf_token %}
+
+    <h3>MRN Summary: {{ mrn.mrn_no }}</h3>
+    <table>
+        <tr><th>Element</th><th>Value</th><th>Match?</th></tr>
+        <tr><td>Total Quantity</td><td>{{ summary.total_qty }}</td><td><input type="checkbox" name="qty_validated" required></td></tr>
+        <tr><td>Base Value</td><td>{{ summary.total_base }}</td><td><input type="checkbox" name="base_validated" required></td></tr>
+        <tr><td>VAT</td><td>{{ summary.total_vat }}</td><td><input type="checkbox" name="vat_validated" required></td></tr>
+        <tr><td>CST</td><td>{{ summary.total_cst }}</td><td><input type="checkbox" name="cst_validated" required></td></tr>
+        <tr><td>CGST</td><td>{{ summary.total_cgst }}</td><td><input type="checkbox" name="cgst_validated" required></td></tr>
+        <tr><td>SGST</td><td>{{ summary.total_sgst }}</td><td><input type="checkbox" name="sgst_validated" required></td></tr>
+        <tr><td>IGST</td><td>{{ summary.total_igst }}</td><td><input type="checkbox" name="igst_validated" required></td></tr>
+        <tr><td>Freight</td><td>{{ summary.total_freight }}</td><td><input type="checkbox" name="freight_validated" required></td></tr>
+        <tr><td>Landed Cost</td><td>{{ summary.landed_cost }}</td><td><input type="checkbox" name="landed_cost_validated" required></td></tr>
+    </table>
+
+    <h3>Enter Invoice Details</h3>
+    {{ form.as_p }}
+
+    <button type="submit">Save Invoice</button>
+</form>

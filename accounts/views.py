@@ -100,14 +100,62 @@ def create_journal_entry(request):
 
 
 
-# from django.db.models import Sum
-# from django.utils import timezone
-# from django.shortcuts import render, redirect
-# from django.contrib import messages
-# from .models import Inv_Transaction, 
-# UnitAccountBalance, AccountingYear, Account_Chart
-# from .forms import DateRangeForm  # assumes year & unit are in form
+from django.shortcuts import redirect
+from django.template import loader
+from django.http import HttpResponse
+from django.contrib import messages
+from .forms import DateRangeForm
+from .models import Inv_Transaction
 
+def create_journal(request):
+    from django.template import RequestContext
+
+    if request.method == 'POST':        
+        form = DateRangeForm(request.POST)
+        if form.is_valid():
+            unit = form.cleaned_data['unit']
+            start_date = form.cleaned_data['start_date']
+            end_date = form.cleaned_data['end_date']
+            
+            if unit:
+                transactions = Inv_Transaction.objects.filter(
+                unit=unit,
+                transaction_date__range=(start_date, end_date)
+                ).order_by('transaction_date')
+            else:
+                transactions = Inv_Transaction.objects.filter(
+                    transaction_date__range=(start_date,end_date)).order_by('transaction_date')
+                
+
+                
+            if not transactions.exists():
+                messages.error(request, "No transactions found for the selected date range.")
+                return redirect('create_journal')  # Ensure your URL name is correct
+
+            # Render using template loader
+            template = loader.get_template('accounts/create_journal.html')
+            context = {
+                'form': form,
+                'transactions': transactions,
+            }
+            return HttpResponse(template.render(context, request))
+        else:
+            messages.error(request, "Please correct the errors in the form.")
+            return redirect('create_journal')
+
+    else:
+        # If GET request, show the form without transactions
+        form = DateRangeForm()
+        template = loader.get_template('accounts/create_journal.html')
+        context = {
+            'form': form,
+            'transactions': Inv_Transaction.objects.none()
+        }
+        return HttpResponse(template.render(context, request))
+          
+    
+
+            
 
 def update_account_chart_orm(request):
     if request.method == 'POST':
@@ -115,9 +163,10 @@ def update_account_chart_orm(request):
         if form.is_valid():
             unit = form.cleaned_data['unit']
             accounting_year = form.cleaned_data['accounting_year']
+            year = AccountingYear.objects.get(id=accounting_year.id)
 
-            start_date = accounting_year.start_date
-            end_date = accounting_year.end_date
+            start_date = year.start_date
+            end_date = year.end_date
             prev_day = start_date - timedelta(days=1)
 
             aggregated_data = Inv_Transaction.objects.filter(
@@ -363,9 +412,8 @@ def bank_payment_view(request):
             transaction_amount= form.cleaned_data['transaction_amount']          
             debit_amounts = request.POST.getlist("debit_amount")
             account_ids = request.POST.getlist("other_account")
-
             total_debit = sum(float(amount) for amount in debit_amounts if amount)
-            
+                        
             if total_debit != transaction_amount:
                 messages.error(request, "Total debit amount must match the transaction amount.")
                 return render(request, "accounts/forms/bank_payment_form.html", {"form": form})
@@ -421,6 +469,7 @@ def bank_payment_view(request):
         form = BankPaymentForm()
 
     return render(request, "accounts/forms/bank_payment_form.html", {"form": form})
+
 
 
 def bank_receipt_view(request):

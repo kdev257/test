@@ -37,7 +37,21 @@ urlpatterns = [
     path('quality_check/<int:id>/',views.quality_check,name='quality_check'),
     path('update_flag/<int:id>/',views.update_flag,name='update_flag'),
     path('mrn_awaiting_stock_location/',views.mrn_awating_stock_location,name='mrn_awaiting_stock_location'),
-    path('mrn_report_view/',views.mrn_report_view,name='mrn_report'),
+    path('mrn_report_view/',views.mrn_report_view,name='mrn_report_view'),
+    path('receipt_pending_matching/',views.receipt_pending_matching,name='receipt_pending_matching'),
+    path('receipt_matching/<int:id>/',views.receipt_matching,name='receipt_matching'),
+    path('retrieve_mrn/<int:mrn>/)', views.retrieve_mrn, name='retrieve_mrn'),
+    path('mrn_awaiting_supplier_match/',views.mrn_awaiting_supplier_match,name='mrn_awaiting_supplier_match'),
+    path('validate_mrn_invoice/<int:mrn>/', views.validate_mrn_invoice, name='validate_mrn_invoice'),
+    path('validate_freight_inovice/', views.validate_freight_invoice, name='validate_freight_invoice'),    
+    path('submit-freight-invoice/', views.submit_freight_invoice, name='submit_freight_invoice'),
+    path('invoice_pending_matching/', views.invoice_pending_matching, name='invoice_pending_matching'),
+    path('match_freight_to_mrns/<int:id>/', views.match_freight_to_mrns, name='match_freight_to_mrns'),
+    path('select_bank/', views.select_bank, name='select_bank'),
+    path('invoice_due_for_payment/<int:id>', views.invoice_due_for_payment, name='invoice_due_for_payment'),
+    # path('knock_off_invoice/<int:account_id>/', views.knock_off_invoice_view, name='knock_off_invoice'),
+
+    
     
     
 ] + static(settings.STATIC_URL, document_root=settings.STATIC_ROOT) 

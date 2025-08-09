@@ -2,7 +2,7 @@
 
 {% block main-content %}
 <hr class='text-warning text-lg'> 
-<center><h3 class='text-warning'>Blend awaiting Issue</h3></center>
+<center><h3 class='text-warning'> Bottling awaiting Issue</h3></center>
 
 <!-- Search form -->
 <form method="GET" action="{% url 'mrn_awaiting_stock_location' %}" class="mb-3">
@@ -28,8 +28,8 @@
         </tr>
     </thead>
     <tbody>
-        {% if bottling_material_awaiting_issue %}
-            {% for item in bottling_material_awaiting_issue %}
+        {% if bottling_awaiting_issue %}
+            {% for item in bottling_awaiting_issue %}
                 <tr>
                     <td>{{ item.id }}</td>                  
                     <td>{{ item.requisition_number }}</td>

@@ -1,0 +1,62 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+
+{% block main-content %}
+<div class="container mt-4">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th>MRN</th>
+                <th>Item</th>                
+                <th>Invoice Quantity</th>
+                <th>Actual Quantity</th>
+                <th>Value</th>
+                <th>VAT</th>
+                <th>CST</th>
+                <th>CGST</th>
+                <th>SGST</th>
+                <th>IGST</th>
+                <th>Freight</th>
+                <th>CGST_Freight</th>
+                <th>SGST_Freight</th>
+                <th>IGST_Freight</th>
+                <th>Custom</th>
+                <th>Clearance</th>
+                <th>Import Fee</th>
+                <th>Export Fee</th>
+                <th>Landed Cost</th>               
+
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in mrn_item  %} 
+            <tr>
+                 <td>{{item.unit}}</td>
+                 <td>{{item.mrn}}</td>
+                 <td>{{item.item}}</td>
+                <td>{{item.invoice_quantity}}</td>
+                <td>{{item.actual_quantity}}</td>               
+                <td>{{item.value}}</td>               
+                <td>{{item.vat}}</td>
+                <td>{{item.cst}}</td>
+                <td>{{item.cgst}}</td>
+                <td>{{item.sgst}}</td>
+                <td>{{item.igst}}</td>
+                <td>{{item.freight}}</td>
+                <td>{{item.cgst_freight}}</td>
+                <td>{{item.sgst_freight}}</td>
+                <td>{{item.igst_freight}}</td>
+                <td>{{item.custom_duty}}</td>
+                <td>{{item.clearance_charges}}</td>
+                <td>{{item.excise_levies_import}}</td>
+                <td>{{item.excise_levies_export}}</td>
+                <td>{{item.landed_cost}}</td>
+                
+            </tr>
+            
+            {% endfor %} 
+        </tbody>
+    </table>
+</div>
+{% endblock %}<th>Custom</th>

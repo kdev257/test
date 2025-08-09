@@ -1,0 +1,18 @@
+{% extends 'inventory/index.html' %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<div class="container">
+    <center><h2 class ='text-warning'>Bank Payment Voucher</h2></center>
+    <form method="post" class="form-horizontal" id="bank-payment-form">
+        {% csrf_token %}
+        
+        <fieldset class="form-group">
+            <center><legend class = 'text-primary'>Bank Details</legend></center>
+        <div class="row">
+            <center><div class="col-md-6">{{ form.account_chart|as_crispy_field }}
+                <button type="submit" class="btn btn-primary text-align-center" >Submit</button></center></div>
+        </form>
+
+{% endblock %}

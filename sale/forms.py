@@ -38,6 +38,7 @@ class Permit_Entry_Form(forms.ModelForm):
         exclude = 'status','created','modified','created_by',
         widgets = {
             'permit_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'valid_till': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
         }
         
         def __init__(self, *args, **kwargs):

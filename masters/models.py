@@ -273,6 +273,8 @@ class Supplier_Profile(models.Model):
     city = models.CharField(max_length=100)
     state = models.ForeignKey(State,on_delete=models.CASCADE)
     is_msme = models.BooleanField(default=False)
+    is_sez = models.BooleanField(default=False)
+    supply_type = models.CharField(max_length=50,choices=(('Goods','Goods'),('Service','Service')), default='Goods',help_text='Goods or Service')
     zip = models.CharField(max_length=11) 
     currency = models.ForeignKey(Currency,on_delete=models.CASCADE,default=1)  
     created_at = models.DateTimeField(auto_now_add=True)
@@ -651,12 +653,14 @@ class Freight(models.Model):
     mode = models.CharField(choices=FREIGHT_TYPE_CHOICES, max_length=50)
     service = models.ForeignKey(Supplier_Service,on_delete=models.CASCADE,default=1,related_name='transporter_service')  
     supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE,related_name='goods_supplier',blank=True,null=True)   
+    transporter = models.ForeignKey(Supplier, on_delete=models.CASCADE, related_name='freight_transporter',blank=True,null=True)
     origin_city = models.CharField(max_length=100)
     destinaton_city = models.CharField(max_length=100)
     vehicle_type = models.ForeignKey(Vehicle_Type, on_delete=models.CASCADE, related_name='freights')
     dumerages_rate= models.DecimalField(default=0,verbose_name='Dumerage Rate Per Day',max_digits=10,decimal_places=2)
     toll_tax = models.DecimalField(default=0,max_digits=10,decimal_places=2)
-    freight = models.DecimalField(max_digits=10, decimal_places=2)    
+    freight = models.DecimalField(max_digits=10, decimal_places=2)
+    credit_terms = models.IntegerField(default=0)    
     transporter_account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,related_name='transporter',blank=True,null=True)
     provision_account= models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='provision')
     cgst_account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='cgst_account')    
@@ -884,3 +888,37 @@ class Customer_Profile(models.Model):
     def __str__(self):
         return f'{self.customer} - {self.user}'
     
+
+#model to track status of supplier invoices and withholding tax and payment status
+
+class Supplier_Invoice_Status(models.Model):
+    supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE,related_name='supplier_invoice_status')
+    transaction_type = models.CharField(max_length=50)  # e.g., "Purchase", "Service"
+    transaction_number = models.CharField(max_length=50)  # e.g., "PO12345", "SRV67890"
+    transaction_date = models.DateField()  # Date of the transaction
+    amount = models.DecimalField(max_digits=10, decimal_places=2)  # Total amount of the transaction
+    matching_status = models.BooleanField(default=False)  # True if matched, False if not matched
+    # To be updated at the time of invoice matching
+    invoice_number = models.CharField(max_length=50)
+    invoice_date = models.DateField()
+    invoice_amount = models.DecimalField(max_digits=10, decimal_places=2)
+    tds_deducted = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    tcs_deducted = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    payment_status = models.BooleanField(default=False)  # True if paid, False if pending
+    payment_date = models.DateField(blank=True, null=True)  # Date of payment if paid
+    
+    def __str__(self):
+        return f"{self.supplier} - {self.invoice_number} - {self.invoice_date}"
+    
+class Bank(models.Model):
+    bank_name = models.CharField(max_length=100)
+    account_number = models.CharField(max_length=50, unique=True)
+    ifsc_code = models.CharField(max_length=11, unique=True)
+    branch_name = models.CharField(max_length=100, blank=True, null=True)
+    account_type = models.CharField(max_length=20, choices=[('Savings', 'Savings'), ('Current', 'Current'),('overdraft','overdraft')], default='Savings')
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bank_created_by', blank=True, null=True)
+    
+    def __str__(self):
+        return f"{self.bank_name} - {self.account_number}"

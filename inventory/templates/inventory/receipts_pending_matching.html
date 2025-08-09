@@ -1,0 +1,37 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% block main-content %}
+<table class="table table-bordered">
+    <thead>
+        <tr>
+            <th>ID</th>
+            <th>MRN</th>
+            <th>Unit</th>
+            <th>Transaction Number</th>
+            <th>Transaction_Date</th>
+            <th>Transaction Type</th>
+            <th>Supplier</th>
+            <th>Provision</th>
+            <th>Matching_Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for receipt  in  receipt_pending_matching %}
+        <tr>            
+            <td>{{receipt.id}}</td>
+            <td>{{receipt.mrn}}</td>
+            <td>{{receipt.unit.unit_name}}</td>
+            <td>{{receipt.transaction_number}}</td>
+            <td>{{receipt.transaction_date}}</td>
+            <td>{{receipt.transaction_type}}</td>
+            <td>{{receipt.supplier}}</td>
+            <td>{{receipt.provision_amount}}</td>
+            <td>{{receipt.matching_status}}</td>
+            <td><button class='btn btn-primary btn-lg'><a class='text-warning text-lg' href="{% url 'receipt_matching' receipt.id %}">Match</a></button></td>
+            <td><button class='btn btn-primary btn-lg'><a class='text-warning text-lg' href="{% url 'retrieve_mrn' receipt.id %}">See Mrn</a></button></td>
+            {% endfor %}
+        </tr>
+    </tbody>
+</table>
+{% endblock main-content %}

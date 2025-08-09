@@ -476,7 +476,7 @@ def generate_document_number(model_class, transaction_type, unit, number_field):
 
 
 
-def determine_supply_nature(supplier_location, recipient_location, is_imported=False, is_sez=False, supply_type="goods"):
+def determine_supply_nature(supplier_state, recipient_location, is_imported, is_sez, supply_type):
     """
     Determines the nature of supply: Inter-State or Intra-State based on the location of the supplier and the recipient.
 
@@ -490,7 +490,7 @@ def determine_supply_nature(supplier_location, recipient_location, is_imported=F
     """
 
     # Inter-State supply conditions
-    if supplier_location != recipient_location:
+    if supplier_state != recipient_location:
         return "Inter-State"
 
     if is_imported:
@@ -501,25 +501,16 @@ def determine_supply_nature(supplier_location, recipient_location, is_imported=F
 
     # Special cases for goods and services
     if supply_type == "goods":
-        if supplier_location == recipient_location and not is_sez:
+        if supplier_state == recipient_location and not is_sez:
             return "Intra-State"
     elif supply_type == "services":
-        if supplier_location == recipient_location and not is_sez:
+        if supplier_state == recipient_location and not is_sez:
             return "Intra-State"
 
     # Default case, intra-state supply
     return "Intra-State"
 
-
-# Example usage:
-supplier_location = "Maharashtra"
-recipient_location = "Karnataka"
-is_imported = False
-is_sez = False
-supply_type = "goods"
-
-# nature_of_supply = determine_supply_nature(supplier_location, recipient_location, is_imported, is_sez, supply_type)
-# print(f"The nature of supply is: {nature_of_supply}")
+# def place_of_supply_goods(movement,bill_ship,)
 
 
 class PlaceOfSupplyServices:

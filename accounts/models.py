@@ -2,7 +2,7 @@ from django.db import models
 from django.db import transaction as db_transaction
 from django.core.exceptions import ValidationError
 # from production.models import Blend
-from masters.models import Account_Chart,Account_Sub_Category,Account_Category,Account_Sub_Class,Account_Class,Unit,Transaction_Type,User,User_Roles,Unit_of_Measurement
+from masters.models import Account_Chart,Account_Sub_Category,Account_Category,Account_Sub_Class,Account_Class,Unit,Transaction_Type,User,User_Roles,Unit_of_Measurement,Bank,Supplier
 from inventory.functions import generate_document_number,generate_transaction_no
 from django.utils import timezone
 
@@ -109,6 +109,17 @@ class Overheads(models.Model):
 #         return f"{self.account.name} - Debit: {self.debit_amount} / Credit: {self.credit_amount}"
 
 
+class BankPaymentVoucher(models.Model):
+    bank = models.ForeignKey(Bank, on_delete=models.CASCADE)
+    date = models.DateField(auto_now_add=True)
+    total_amount = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    unit = models.ForeignKey(Unit, on_delete=models.CASCADE)
+    # Other fields like reference, remarks, etc.
+
+class BankPaymentLineItem(models.Model):
+    bank_payment = models.ForeignKey(BankPaymentVoucher, on_delete=models.CASCADE, related_name='line_items')
+    supplier = models.ForeignKey(Supplier, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=12, decimal_places=2,default=0)
 
     
     

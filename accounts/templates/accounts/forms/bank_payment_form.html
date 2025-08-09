@@ -13,7 +13,7 @@
             <div class="row">
                 <div class="col-md-6">{{ form.account_chart|as_crispy_field }}</div>
                 <div class="col-md-6">
-                    {% comment %} <label for="transaction-amount">Transaction Amount</label> {% endcomment %}
+                    {% comment %} <label for="transaction-amount"></label> {% endcomment %}
                     <div class="col-md-4" id='transaction-amount'>{{ form.transaction_amount|as_crispy_field }}</div>
                 </div>
             </div>
@@ -22,7 +22,8 @@
         <fieldset class="form-group" id="transaction-entries">
             <legend>Transaction Details</legend>
             <div class="entry row">
-                <div class="col-md-12">{{ form.other_account|as_crispy_field }}</div>
+                <div class="col-md-12">
+                    {{ form.other_account|as_crispy_field }}
                 <div class="col-md-12">{{ form.unit|as_crispy_field }}</div>
                 <div class="col-md-6">{{ form.debit_amount|as_crispy_field }}</div>
                 <div class="col-md-6">{{ form.reference|as_crispy_field }}</div>

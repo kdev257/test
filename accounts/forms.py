@@ -25,34 +25,38 @@ JournalEntryFormSet = modelformset_factory( Inv_Transaction,form=JournalEntryFor
 class DateRangeForm(forms.Form):    
     unit = forms.ModelChoiceField(queryset=Unit.objects.all(),widget=forms.Select(attrs={'class': 'form-control', 'style': 'height: 50px;'}),required=False,help_text='Pls leave blank to select all units')
     accounting_year = forms.ModelChoiceField(queryset=AccountingYear.objects.all(),widget=forms.Select(attrs={'class': 'form-control', 'style': 'height: 50px;'}),required=False,help_text='Pls Select the Accounting Year')
+    start_date = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'style': 'height: 50px;'}),)
+    end_date = forms.DateField(
+        widget=forms.DateInput(attrs={'class': 'form-control', 'type': 'date', 'style': 'height: 50px;'}),)
     
 # Transaction Form
-class BankPaymentForm(forms.ModelForm):
+class SelectBankForm(forms.Form):
     account_chart = forms.ModelChoiceField(
         queryset=Account_Chart.objects.filter(sub_category=26),
         label="Select Bank Account",
         widget=forms.Select(attrs={'class': 'form-control'})
     )
+
+class BankPaymentForm(forms.ModelForm):
+    account_chart = forms.ModelChoiceField(
+        queryset=Account_Chart.objects.filter(sub_category=26),
+        label="Select Bank Account",
+        widget=forms.Select(attrs={'class': 'form-control'})
+        )
     transaction_amount = forms.DecimalField(
-        label="Transaction Amount",
+        # label="Transaction Amount",
         max_digits=12,
         decimal_places=2,
         widget=forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter Amount'})
     )
     other_account = forms.ModelChoiceField(
-        queryset=Account_Chart.objects.exclude(sub_category=26),
+        queryset=Account_Chart.objects.filter(sub_category__category=4),
         label="Select Account",
-        widget=forms.Select(attrs={'class': 'form-control'})
-    )
-    debit_amount = forms.DecimalField(label="Debit_Amount", max_digits=12, decimal_places=2)
-    reference = forms.CharField(label="Narration", required=False, widget=forms.Textarea(attrs={'rows': 1}))
+        widget=forms.Select(attrs={'class': 'form-control'})    
+    )     
+            
     
-    unit = forms.ModelChoiceField(
-    queryset=Unit.objects.all(),
-    label="Select Unit",
-    widget=forms.Select(attrs={'class': 'form-control'})
-    )
-
     class Meta:
         model = Inv_Transaction
         exclude = ['transaction_number', 'transaction_date', 'credit_amount']

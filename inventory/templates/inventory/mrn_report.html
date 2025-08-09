@@ -44,6 +44,7 @@
                 <th>Unit</th>
                 <th>Transaction Date</th>
                 <th>Approval</th>
+                <th>Action</th>
             </tr>
         </thead>
         <tbody>
@@ -54,6 +55,8 @@
                 <td>{{ item.unit }}</td>
                 <td>{{ item.mrn_date }}</td>
                 <td>{{ item.quality_approval }}</td>
+                <td><a href="{% url 'validate_mrn_invoice' item.id %}"><button type="submit" class="btn btn-primary">Three Way Match</button></td></a>
+                <td><a href="{% url 'validate_freight_invoice'  %}"><button type="submit" class="btn btn-primary">Freight Match</button></td></a>
             </tr>
             {% endfor %}
         </tbody>

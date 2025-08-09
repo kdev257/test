@@ -10,8 +10,12 @@
   </head>
   <body>
       {% block navbar %}
-      {% include "inventory/navbar.html" %}
-      {% endblock navbar %}
+      {% comment %} {% include "inventory/navbar.html" %} {% endcomment %}
+      {% endblock navbar %} <br><br>
+      {% block dashboard %}
+      {% include "inventory/dashboard.html" %}
+      {% endblock dashboard %}
+
    <div class="container">
       <div class="row">
         <div class=".col-sm-* .col-md-* .col-lg-*">
@@ -34,7 +38,7 @@
                 {% else %}
                   <a href="{% url 'employee_profile' %}" class="btn btn-success">Login</a>
                 {% endif %}
-                </div>
+                </div>            
             {% block main-content %} 
                      
                   

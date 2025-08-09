@@ -176,8 +176,8 @@ def material_requisition(request, id):
         for bom in bom_items:
             quantity = bom.bom_quantity
             item = bom.item
-            uom = bom.uom
-            required_quantity = batch_quantity * quantity
+            uom = bom.uom            
+            required_quantity = int(batch_quantity * quantity) if blend.bom.bom_type=='Bottling' else batch_quantity * quantity 
             created_by = request.user
 
             # Create the Material Requisition
@@ -201,8 +201,13 @@ def material_requisition(request, id):
 
 @login_required
 def blend_awating_issue(request):
-    blend_awaiting_issue = Material_Requisition.objects.filter(issue_slip__isnull = True)
+    blend_awaiting_issue = Material_Requisition.objects.filter(issue_slip__isnull = True,bom=1)
     return render(request,'stock/blend_awaiting_issue.html',{'blend_awaiting_issue':blend_awaiting_issue})
+
+@login_required
+def bottling_awaiting_issue(request):
+    bottling_awaiting_issue = Material_Requisition.objects.filter(issue_slip__isnull = True)
+    return render(request,'stock/bottling_material_awaiting_issue.html',{'bottling_awaiting_issue':bottling_awaiting_issue})
 
 
 
@@ -256,7 +261,8 @@ def issue_to_blend(request, id):
                     # Update the `issue_slip` in Material_sRequisition                    
                   
                     Material_Requisition.objects.filter(id=id).update(issue_slip=se.id)                    
-                    
+                    account_entry(blend.id)
+                    Stock_Entry.objects.filter(id=se.id).update(account_entry=True) #Update the transaction number in stock entry
                     # Check if all requisitions for the blend are fully issued
                     fully_issued = Material_Requisition.objects.filter(blend=blend, issue_slip__isnull=True)                    
                     if not fully_issued.exists():
@@ -264,7 +270,7 @@ def issue_to_blend(request, id):
                         
                         #Generate Account Entry                         
                         
-                        account_entry(blend.id)
+                       
                         return redirect('employee_profile')  
                     else:
                         return redirect('blend_awaiting_issue')
@@ -279,6 +285,79 @@ def issue_to_blend(request, id):
 
     return render(request,'production/issue_to_blend.html', {'form': form})
 
+@login_required
+def issue_to_bottling(request, id):
+    '''This view is used to issue Dry Goods stock to blend based on the requisition raised'''    
+    requisition = Material_Requisition.objects.get(id=id)    #Fetch the requisition based on the id
+    bom = requisition.bom
+    average_rate = Stock_Ledger.objects.filter(item=requisition.item,unit=requisition.unit).last().closing_rate #Fetch the average rate of the item from last stock ledger entry
+    available_stock = Stock_Ledger.objects.filter(item=requisition.item,unit=requisition.unit).last().closing_quantity #Fetch the available stock of the item from last stock ledger entry
+    blend_to_update = Blend.objects.get(id=requisition.blend.id) #Fetch the blend to update the status
+    if request.method == "POST":
+        form = IssueForm(request.POST, user=request.user)
+        if form.is_valid():
+            with db_transaction.atomic():
+                # try:
+                if requisition.required_quantity <= available_stock:
+                    transaction_type = form.cleaned_data['transaction_type']
+                    stock_location = form.cleaned_data['stock_location']
+                    to_location = form.cleaned_data['to_location']
+                    unit = requisition.blend.unit
+                    blend = blend_to_update
+                    item = requisition.item
+                    issue_quantity = requisition.required_quantity
+                    issue_value = round(issue_quantity * average_rate,4)
+                    created_by = request.user
+                    ic(item,unit,issue_quantity,issue_value,blend,stock_location,to_location,transaction_type,created_by, 180)
+
+                    # Create and save the Stock_Entry instance
+                    se =Stock_Entry.objects.create(
+                        transaction_type=transaction_type,
+                        bom=bom,
+                        blend=blend,
+                        requisition=requisition,
+                        transaction_cat = 'Issue',
+                        stock_location=stock_location,
+                        to_location=to_location,
+                        issue_quantity=issue_quantity,
+                        issue_value=issue_value,                               
+                        item=item,
+                        unit=unit,
+                        # account = account,
+                        created_by=created_by
+                    )               
+                    messages.success(request, 'Stock successfully issued to blend')
+                    #update stock ledger
+                    # update_stock_ledger(id=se.id)
+                    # Update the stock location
+                    upl =update_stock_location(id=stock_location.id,receipt_quantity=0,receipt_value=0,issue_quantity=issue_quantity,issue_value=issue_value,unit=unit,item=item)
+                    upl.save()
+                    # Update the `issue_slip` in Material_sRequisition                    
+                  
+                    Material_Requisition.objects.filter(id=id).update(issue_slip=se.id)                    
+                    
+                    # Check if all requisitions for the blend are fully issued
+                    fully_issued = Material_Requisition.objects.filter(blend=blend, issue_slip__isnull=True)                    
+                    if not fully_issued.exists():
+                        Blend.objects.filter(id=requisition.blend.id).update(status=300) #WG 
+                        
+                        #Generate Account Entry                         
+                        
+                        # account_entry(blend.id)
+                        # Stock_Entry.objects.filter(id=se.id).update(account_entry=True)
+                        return redirect('employee_profile')  
+                    else:
+                        return redirect('bottling_awaiting_issue')
+                        
+                else:
+                    messages.error(request, f"Available Stock of {requisition.item} is less than Required Quantity")
+                # except Exception as e:
+                    # print(f"Error occurred: {e}")
+    else:
+            # Initial form to select `from_location` and `to_location`, user will select locations
+        form = IssueForm(user=request.user)
+
+    return render(request,'production/issue_to_blend.html', {'form': form})
 
 
 
@@ -363,7 +442,7 @@ def stock_location_update(request):
 
 def account_entry(blend):
     with db_transaction.atomic():
-        stock_entry = Stock_Entry.objects.filter(blend=blend)
+        stock_entry = Stock_Entry.objects.filter(blend=blend,account_entry=False)
         debit_account = Account_Chart.objects.select_for_update().get(account_code='2302')
         
         for entry in stock_entry:
@@ -533,4 +612,33 @@ def issue_for_bottling(request, id):
         form = BottlingIssueForm(user=request.user)
     return render(request, 'stock/issue_to_bottling_form.html', {'form': form})
 
+def stock_ledger_view(request):
+    stock_ledger = (
+        Stock_Ledger.objects
+        .select_related('item')
+        .values(
+            'id',
+            'opening_quantity',
+            'opening_value',
+            'closing_quantity',
+            'closing_value',
+            'item_id',
+            'item__item_name',
+            'closing_rate',
+            'issue_quantity',
+            'issue_rate',
+            'issue_value',
+            'opening_rate',
+            'receipt_quantity',
+            'receipt_rate',
+            'receipt_value',
+            'transaction_date',
+            'transaction_number',
+            'transaction_type_id',
+            'unit_id',
+            'stock_entry_id',
+        )
+        .order_by('unit_id','item_id','transaction_date',)
+    )
     
+    return render(request, 'stock/stock_ledger.html', {'stock_ledger': stock_ledger})

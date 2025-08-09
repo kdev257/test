@@ -1,0 +1,36 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load i18n %}
+{% load crispy_forms_tags %}
+
+{% block main-content %}
+<form method = post>
+    {% csrf_token %}
+    {{form|crispy}}
+    <button type="submit" class="btn btn-primary text-center">Submit</button>
+</form>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    function toggleTaxFields() {
+        var voucherType = document.getElementById('id_vourcher_type');
+        var taxAccount = document.getElementById('id_tax_account').closest('.form-group, .mb-3, .form-row, .form-group');
+        var taxAmount = document.getElementById('id_tax_amount').closest('.form-group, .mb-3, .form-row, .form-group');
+        if (voucherType.value === 'Freight') {
+            taxAccount.style.display = '';
+            taxAmount.style.display = '';
+        } else {
+            taxAccount.style.display = 'none';
+            taxAmount.style.display = 'none';
+        }
+    }
+
+    var voucherTypeField = document.getElementById('id_vourcher_type');
+    if (voucherTypeField) {
+        voucherTypeField.addEventListener('change', toggleTaxFields);
+        toggleTaxFields();
+    }
+});
+</script>
+
+
+{% endblock %}

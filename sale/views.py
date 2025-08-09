@@ -286,6 +286,8 @@ def permit_entry(request):
                     instance.created_by = request.user
                     instance.save()
                     messages.success(request,'Permit Entry Successful')
+                else:
+                    messages.error(request,f'Error in form submission: {form.errors}')
             except Exception as e:
                 messages.error(e)
         return redirect('permit_item_entry')

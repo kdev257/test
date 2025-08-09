@@ -1,0 +1,46 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+
+{% block main-content %}
+<div class="container mt-4">
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Unit</th>
+                <th>MRN</th>                               
+                <th>Supplier</th>                
+                <th>Quantity</th>                
+                <th>Value</th>                
+                <th>VAT</th>               
+                <th>CST</th>               
+                <th>CGST</th>               
+                <th>SGST</th>               
+                <th>IGST</th>               
+                <th>Action</th>               
+
+            </tr>
+        </thead>
+        <tbody>
+            {% for mrn in mrns %}
+           <tr>
+                 <td>{{mrn.unit}}</td>
+                 <td>{{mrn.mrn_number}}</td>                 
+                 <td>{{mrn.gate_entry.po.quotation.supplier}}</td>
+                 <td>{{mrn.total_qty}}</td>
+                 <td>{{mrn.total_value}}</td>
+                    <td>{{mrn.total_vat}}</td>
+                    <td>{{mrn.total_cst}}</td>
+                    <td>{{mrn.total_cgst}}</td>  
+                    <td>{{mrn.total_sgst}}</td>
+                    <td>{{mrn.total_igst}}</td>
+                 
+                <td><a href="{% url 'validate_mrn_invoice' mrn.id %}">Match</a></td>
+                
+            </tr>
+            
+            
+            {% endfor %} 
+        </tbody>
+    </table>
+</div>
+{% endblock %}<th>Custom</th>

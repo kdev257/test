@@ -5,6 +5,7 @@ from .models import *
 admin.site.register(Quotation)
 admin.site.register(Quotation_Items)
 admin.site.register(Material_Receipt_Note)
+admin.site.register(Receipt_Not_Vouchered)
 
 
 

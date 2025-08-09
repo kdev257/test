@@ -32,6 +32,22 @@ class BlendWipIssueForm(forms.ModelForm):
     class Meta:
         model = Stock_Entry
         fields = 'transaction_type','stock_location','quantity','to_location'
+        def __init__(self, *args, **kwargs):
+            user = kwargs.pop('user', None)
+            blend = kwargs.pop('blend',None)              
+            super(BlendWipIssueForm, self).__init__(*args, **kwargs)
+            if blend:
+             blend=blend
+            if user:
+                try:
+                    user_unit = user.user_roles.unit
+                except User_Roles.DoesNotExist:
+                    user_unit = None
+
+                # Filtering the Purchase Orders based on user unit and approval status
+                self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(transaction_name='Transfer')
+             
+    
             
 class DailyProductionPlanForm(forms.ModelForm):
     class Meta:

@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
 
  form{ 
-      border: 2px solid #eb6b6b; 
+     border: 2px solid #eb6b6b;      
      padding: 8px; 
      border-radius: 4px; 
-     font-size: 16px; 
+     font-size: 20px; 
  } 
  input[type="number"], input[type="text"],input[type="date"], select, textarea { 
      width: 500px; 
@@ -20,8 +20,8 @@ body{
     font-family: 'Roboto', sans-serif;
     font-size :25px !important;
     font-weight:normal !important;
-    background-color:rebeccapurple;
-    color: aqua;
+    background-color:rgb(88, 6, 139) !important;
+    color: rgb(31, 16, 0)!important;
     display: flex;
     flex-direction: column;
     min-height: 100vh;
@@ -32,6 +32,7 @@ body{
 form{
     font-family: inherit;
     font-size: 20px;
+    background: gray !important;
     
     
 }

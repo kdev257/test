@@ -83,6 +83,8 @@ def blend_wip(request,id):
                     
                     Blend.objects.filter(id=id).update(status='400')
                     wip_accounting_entry(id=se.id)
+                    Stock_Entry.objects.filter(id=se.id).update(account_entry=True)
+                    return redirect('employee_profile')
                 except Exception as e:
                     messages.error(request,f'Transaction Failed because of {e}')
                     if e:
@@ -186,6 +188,8 @@ def wip_issue(request,id):
                     #Create Accounting Entry
                                         
                     wip_issue_accounting_entry(id)
+                    Stock_Entry.objects.filter(id=se.id).update(account_entry=True)
+                    return redirect('employee_profile')
             #Handle exceptions       
             except Exception as e:
                 messages.error(request,f'Transaction Failed because of {e}')
@@ -197,8 +201,9 @@ def wip_issue(request,id):
                             
 
 def wip_issue_accounting_entry(id):  
-    blend = Blend.objects.get(id=id)
-    wip = Stock_Entry.objects.filter(blend=blend,transaction_type=14).last()  
+    blend = Blend.objects.get(id=id)   
+    wip = Stock_Entry.objects.filter(blend=blend,transaction_type=14).last() 
+    
     wip_account = Account_Chart.objects.select_for_update().get(id=wip.blend.brand.wip_blend_account.id)
     inventory_account = Account_Chart.objects.select_for_update().get(id=wip.blend.brand.finished_blend_account.id)      
     transaction_type = wip.transaction_type
@@ -418,7 +423,7 @@ def production_entry_line(request):
 
 def raw_material_consumption(request, id):
     # Fetch all stock entries related to the transaction
-    stock_entries = Stock_Entry.objects.filter(Q(blend=id) & Q(bom__bom_type ='Bottling')) 
+    stock_entries = Stock_Entry.objects.filter(Q(blend=id) & Q(bom__bom_type ='Bottling'),Q(account_entry=False)) 
             
     StockEntryFormSet = modelformset_factory(Stock_Entry, form=RawMaterialConsumptionForm, extra=0)
     if request.method == 'POST':
@@ -448,9 +453,13 @@ def raw_material_consumption(request, id):
                         stock_entry.issue_value = issue_value - stock_entry.return_value
                         # Save the updated object to the database
                         stock_entry.save()
+                        ic(stock_entry.id)
                         update_location=update_stock_location(id=stock_entry.stock_location.id,receipt_quantity=0,receipt_value=0,issue_quantity=stock_entry.issue_quantity,issue_value=stock_entry.issue_value,unit=stock_entry.unit,item=stock_entry.item)
                         update_location.save()
-                        update_stock_ledger(id=stock_entry.id)                           
+                        
+                        update_stock_ledger(id=stock_entry.id)   
+                        
+                        # Create accounting entries for the stock entry                        
 
                         total_debits=total_credits=0                               
                         account_map = Brand.objects.get(id=blend.brand.id)
@@ -476,7 +485,9 @@ def raw_material_consumption(request, id):
                             
                         update_account_chart(id=wip_account.id,debit_amount=stock_entry.issue_value,credit_amount=0)
                             
-                        inv_credit_transaction =Inv_Transaction(transaction_date=transaction_date,transaction_type=transaction_type,transaction_number=transaction_number,transaction_cat='Credit',credit_amount=stock_entry.issue_value,debit_amount=0,account_chart=stock_entry.item.account,reference=f'Issue entry towards {stock_entry.blend}',unit=stock_entry.unit)
+                        inv_credit_transaction =Inv_Transaction(transaction_date=transaction_date,transaction_type=transaction_type,transaction_number=transaction_number,transaction_cat='Credit',
+                        credit_amount=stock_entry.issue_value,debit_amount=0,
+                        account_chart=stock_entry.item.account,reference=f'Issue entry towards {stock_entry.blend}',unit=stock_entry.unit)
                         inv_credit_transaction.save()
                     
                             

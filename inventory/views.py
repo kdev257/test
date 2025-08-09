@@ -1,16 +1,18 @@
 from django.shortcuts import render,get_object_or_404,redirect
-from masters.models import Account_Chart,User,User_Roles,DOA,Transaction_Type,State_Excise_taxes_On_Goods,Service,Currency
+from masters.models import Account_Chart,User,User_Roles,DOA,Transaction_Type,State_Excise_taxes_On_Goods,Service,Currency,Supplier_Profile
 from .models import Purchase_Order,Material_Receipt_Note,Quality_Check,Gate_Entry,Vehicle_Unloading_Report,Freight_Purchase_Order,Mrn_Items,Receipt_Not_Vouchered
-from accounts.models import Inv_Transaction
+from accounts.models import Inv_Transaction,BankPaymentVoucher,BankPaymentLineItem
+from accounts.forms import SelectBankForm
+from datetime import date
 from django.contrib import messages
 from .forms import *
 from django.db import transaction as db_transaction
 from django.forms import modelformset_factory
-from django.utils.timezone import now
+from django.utils.timezone import now,timedelta
 from django.contrib.auth.decorators import login_required
 from django.db.models import F
 from django.db.models import Sum
-from .functions import calculate_custom,calculate_tax,assign_approver,update_account_chart,generate_document_number
+from .functions import calculate_custom,calculate_tax,assign_approver,update_account_chart,generate_document_number,determine_supply_nature,calculate_tds,gst_on_service
 from decimal import Decimal
 from django.db.models import Q  # Import Q for complex lookups
 import logging
@@ -154,7 +156,13 @@ def approve_quotation(request,id):
 def quotation_pending_po_generation(request):
     unit = request.user.user_roles.unit
     current_date = now()
-    pending_quotation = Quotation.objects.filter(approved=True,unit=unit,valid_from__lte=current_date,valid_till__gte=current_date,balance_quantity__gt = 0)
+    pending_quotation = Quotation.objects.filter(
+        approved=True,
+        unit=unit,
+        valid_from__lte=current_date,
+        valid_till__gte=current_date,
+        balance_quantity__gt=0
+    ).only('id', 'quotation_no', 'supplier', 'balance_quantity', 'valid_from', 'valid_till')
     return render(request,'inventory/quotation_list.html',{'pending':pending_quotation})
 
 
@@ -754,28 +762,26 @@ def generate_mrn(request, id):
                
                 
 def process_mrn(id):    
-    mrn = Material_Receipt_Note.objects.get(id=id)    
-    po= mrn.gate_entry.po
-    # service_supplier = po.service.supplier
-    # ic(service_supplier,721)
+    mrn = Material_Receipt_Note.objects.get(id=id)
+    transaction_number = mrn.mrn_number    
+    po= mrn.gate_entry.po    
     unit = po.unit
-    unload_report = mrn.unload_report
-    # print(unload_report,694)    
-    mrn_items = unload_report.unloaded_item.all()
-    # print(mrn_items)   
+    unload_report = mrn.unload_report        
+    mrn_items = unload_report.unloaded_item.all()    
     total_quantity_dict = unload_report.unloaded_item.values('item').aggregate(total_quantity=Sum('bill_quantity'))
     total_quantity = total_quantity_dict['total_quantity']  
     transaction_type = mrn.transaction_type    
     # if not transaction_number:
-    transaction_number = generate_document_number(
-        model_class= Inv_Transaction,
-        transaction_type=transaction_type,
-        unit=unit,
-        number_field='transaction_number',
-    )
+    # transaction_number = generate_document_number(
+    #     model_class= Inv_Transaction,
+    #     transaction_type=transaction_type,
+    #     unit=unit,
+    #     number_field='transaction_number',
+    # )
     
     with db_transaction.atomic():
-        landed_cost=credit_supplier=freight_provision=credit_custom=credit_excise = total_debits=total_credits=total_import_levies=total_excise_levies=0   
+        landed_cost=credit_supplier=freight_provision=credit_custom=credit_excise= total_debits=total_credits=value=vat=cst=cgst=sgst=igst=freight=cgst_freight=sgst_freight=igst_freight=custom_duty=excise_levies_import=excise_levies_export=clearance_charge=Decimal(0)
+        creditable = False   
         for mrn_item in mrn_items:                
             billed_quantity = mrn_item.bill_quantity
             actual_quantity = mrn_item.actual_quantity 
@@ -783,16 +789,9 @@ def process_mrn(id):
             po_item = Purchase_Order_Items.objects.select_for_update().get(quotation_item= mrn_item.item,purchase_order=po)
             rate= po_item.rate         
             unit = mrn.gate_entry.unit
-    #         # lcr = Po_Lcr_Join.objects.get(po_id=mrn.gate_entry.po.id)
-    
             value = Decimal(billed_quantity) * Decimal(rate) * Decimal(po.quotation.currency.conversion_rate) 
             inland_haulage = (Decimal(billed_quantity) * Decimal(po.quotation.misc_cost) * Decimal(po.quotation.currency.conversion_rate))
-            custom_duty = 0 
-            igst = 0               
             supplier_state= po.quotation.supplier.supplier_state
-            custom_duty = excise_levies = clearance_charge = 0
-            cgst = sgst = igst = cgst_freight = sgst_freight = igst_freight = 0  # initialize variables
-            creditable = False            
             if po.quotation.supplier.location == 'Overseas':
     #             # Fetch all custom duties related to the item
                 custom , igst = calculate_custom(inr_value=value,item=mrn_item.item)
@@ -800,33 +799,32 @@ def process_mrn(id):
                 igst = igst                
                 clearance_charge = value * Decimal('1.18') / Decimal('100')
                 ic(value,custom_duty,igst,clearance_charge, 703)
-            total_import_levies = 0                
             if mrn_item.item.item_tax_type == 'Non_GST':
                 if po.quotation.supplier.supplier_state != unit.state:
-                    import_levies = State_Excise_taxes_On_Goods.objects.filter(state=unit.state,incidence='Outward')                    
-                    for levy in import_levies:
+                    excise_levies_import_qs = State_Excise_taxes_On_Goods.objects.filter(state=unit.state,incidence='Inward')                    
+                    for levy in excise_levies_import_qs:
                         tax_name = levy.tax_name       
                         excise_rate = levy.rate
                         uom = levy.levy_unit
                         import_fee_account= levy.account
-                        excise_amount = billed_quantity * excise_rate
-                        total_import_levies += excise_amount 
+                        excise_amount = Decimal(billed_quantity * excise_rate)
+                        excise_levies_import += Decimal(excise_amount) 
                     
                 #Calculate excise levies on export of goods
                
-                excise_levies = State_Excise_taxes_On_Goods.objects.filter(state=po.quotation.supplier.supplier_state,incidence='Inward')
-                total_excise_levies = 0
-                for levies in excise_levies:
+                excise_levies_export_qs = State_Excise_taxes_On_Goods.objects.filter(state=po.quotation.supplier.supplier_state,incidence='Outward')                
+                for levies in excise_levies_export_qs:
                     tax_name = levies.tax_name       
                     excise_rate = levies.rate
                     uom = levies.levy_unit
-                    excise_amount = billed_quantity * excise_rate    
-                    total_excise_levies += excise_amount 
+                    excise_amount = Decimal(billed_quantity * excise_rate)    
+                    excise_levies_export += Decimal(excise_amount) 
+                    value += value+ Decimal(excise_amount)
                     
 
     #             # Calculate State taxes like VAT and CST
                     
-                tax =calculate_tax(po=po,value=value+total_excise_levies,item=mrn_item.item,supplier_state=supplier_state)            
+                tax =calculate_tax(po=po,value=value,item=mrn_item.item,supplier_state=supplier_state)            
                 vat = tax['VAT']
                 cst = tax['CST']
                 cgst = tax['CGST']
@@ -834,7 +832,7 @@ def process_mrn(id):
                 igst = tax['IGST']
                 creditable = tax['creditable']            
             else:
-                tax =calculate_tax(po=po,value=value+total_import_levies,item=mrn_item.item,supplier_state=supplier_state)            
+                tax =calculate_tax(po=po,value=value+excise_levies_import,item=mrn_item.item,supplier_state=supplier_state)            
                 vat = tax['VAT']
                 cst = tax['CST']
                 cgst = tax['CGST']
@@ -842,9 +840,11 @@ def process_mrn(id):
                 igst = tax['IGST']
                 creditable = tax['creditable']     
                     
-    #                 # Calculate applicable freight
+            # Calculate applicable freight
             if po.quotation.delivery_terms == 'Ex-Factory':
-                transporter = po.freight.service.supplier                                
+                
+                transporter = po.freight.supplier  
+                transporter_account = po.freight.transporter_account                              
                 freight = po.freight.freight
                 toll_tax = po.freight.toll_tax
                 freight = (freight + toll_tax)/(total_quantity)*mrn_item.bill_quantity          
@@ -852,8 +852,6 @@ def process_mrn(id):
                 # Calculate tax on freight service
                 if po.freight.service.supplier.supplier_state != po.unit.state:
                     igst_freight = freight * po.freight.service.service.gst_rate / 100
-                    
-                                        
                 else:
                     cgst_freight = freight * po.freight.service.service.gst_rate / 200
                     sgst_freight = freight * po.freight.service.service.gst_rate / 200             
@@ -861,7 +859,7 @@ def process_mrn(id):
             else:
                 freight = 0
           
-            mrn_item_instance=Mrn_Items(invoice_quantity=billed_quantity,actual_quantity=actual_quantity,value=value,vat=vat,cst=cst,cgst=cgst,sgst=sgst,igst=igst,freight=freight,cgst_freight=cgst_freight,sgst_freight=sgst_freight,igst_freight=igst_freight,custom_duty=custom_duty,excise_levies_import=total_import_levies,item=item,mrn=mrn,unit=unit,excise_levies_export=total_excise_levies,)
+            mrn_item_instance=Mrn_Items(invoice_quantity=billed_quantity,actual_quantity=actual_quantity,value=value,vat=vat,cst=cst,cgst=cgst,sgst=sgst,igst=igst,freight=freight,cgst_freight=cgst_freight,sgst_freight=sgst_freight,igst_freight=igst_freight,custom_duty=custom_duty,excise_levies_import=excise_levies_import,item=item,mrn=mrn,unit=unit,excise_levies_export=excise_levies_export,)
                         
             # Ensure billed_quantity is valid
             if billed_quantity is None or billed_quantity <= 0:
@@ -880,21 +878,22 @@ def process_mrn(id):
             
             item = mrn_item.item
             if po.business.pk == 1:
-                landed_cost=0
+                landed_cost=Decimal(0)                
                 if creditable:                                             
-                    landed_cost += value + cst +freight + cgst_freight + sgst_freight + igst_freight + total_import_levies+custom_duty + igst + cgst + sgst + total_excise_levies + clearance_charge + inland_haulage
+                    landed_cost += value + cst +freight + cgst_freight + sgst_freight + igst_freight + excise_levies_export+custom_duty + igst + cgst + sgst + excise_levies_import + clearance_charge + inland_haulage
                 else:
-                    landed_cost += value + vat + cst + freight + cgst_freight + sgst_freight + igst_freight + total_import_levies+custom_duty + igst + cgst + sgst+total_excise_levies +clearance_charge + inland_haulage                                        
-                credit_supplier += value + cst + vat + cgst + sgst + igst + inland_haulage + total_excise_levies
+                    landed_cost += value + vat + cst + freight + cgst_freight + sgst_freight + igst_freight + excise_levies_import+custom_duty + igst + cgst + sgst+ excise_levies_import +clearance_charge + inland_haulage                                        
+                credit_supplier += value + cst + vat + cgst + sgst + igst + inland_haulage + excise_levies_export
                 ic(credit_supplier,inland_haulage) 
                 freight_provision += freight + cgst_freight + sgst_freight + igst_freight
                 credit_custom += custom_duty 
-                credit_excise += total_import_levies          
+                credit_excise += excise_levies_import          
                 mrn_item_instance.landed_cost=landed_cost
                 # clearance_charge = clearance_charge
                 mrn_item_instance.save() 
                 receipt_not_vouchered_supplier = Receipt_Not_Vouchered(
                 transaction_number=transaction_number,
+                voucher_type = 'Purchase',
                 transaction_type=transaction_type,
                 transaction_date=mrn.mrn_date,
                 unit=unit,
@@ -910,18 +909,20 @@ def process_mrn(id):
                     transaction_number=transaction_number,
                     transaction_type=transaction_type,
                     transaction_date=mrn.mrn_date,
+                    voucher_type = 'Freight',
                     unit=unit,
                     supplier = transporter,
                     invoice_number=mrn.gate_entry.lorry_receipt_number,
                     invoice_date=mrn.gate_entry.lorry_receipt_date,
                     invoice_value = freight_provision,
-                    account= transporter.account,
+                    account= Account_Chart.objects.get(id=transporter_account.id)
                     )
                     receipt_not_vouchered_transporter.save()
                 if po.quotation.supplier.location == 'Overseas': 
                     receipt_not_vouchered_clearing_agent = Receipt_Not_Vouchered(
                     transaction_number=transaction_number,
                     transaction_type=transaction_type,
+                    voucher_type = 'Service',
                     transaction_date=mrn.mrn_date,
                     unit=unit,
                     supplier = po.service.supplier,
@@ -951,7 +952,6 @@ def process_mrn(id):
         
                 
         account_chart = Account_Chart.objects.get(id=43)
-
         credit_update_supplier =Inv_Transaction(
         transaction_type =transaction_type,
         transaction_number = transaction_number,
@@ -1002,7 +1002,7 @@ def process_mrn(id):
             update_account_chart(id=account_chart.id,credit_amount=credit_custom,debit_amount=0)
             total_credits += credit_custom
     
-        if total_import_levies >0:
+        if excise_levies_import >0:
             account_chart=Account_Chart.objects.get(id=import_fee_account.id)              
             excise_update =Inv_Transaction(
             transaction_type =transaction_type,
@@ -1010,15 +1010,16 @@ def process_mrn(id):
             transaction_cat = 'Credit',
             unit =unit,
             debit_amount = 0,
-            credit_amount = total_import_levies,
+            credit_amount = excise_levies_import,
             account_chart = account_chart,
             reference = f"Credit entry toward advance excise levies on supply of {item} vide  {mrn.gate_entry.invoice_no} dated {mrn.gate_entry.invoice_date}"
             )
             excise_update.save()
-            update_account_chart(id=account_chart.id,credit_amount=total_import_levies,debit_amount=0)
+            update_account_chart(id=account_chart.id,credit_amount=excise_levies_import,
+            debit_amount=0)
             ic(total_credits)
-            total_credits += total_import_levies
-            ic(total_import_levies,total_credits,971)
+            total_credits += excise_levies_import
+            ic(excise_levies_import,total_credits,971)
         if vat > 0:
                 account_chart= Account_Chart.objects.get(id=49)
                 vat_update=Inv_Transaction(
@@ -1053,7 +1054,7 @@ def process_mrn(id):
         return redirect('employee_profile')
     
     if total_debits != total_credits:
-        raise db_transaction.TransactionManagementError("Debit and credit amounts do not match, rolling back transaction.")
+        raise db_transaction.TransactionManagementError("Debit and credit   amounts do not match, rolling back transaction.")
     
 
 def process_taxable_mrn(id):
@@ -1350,38 +1351,1126 @@ def process_taxable_mrn(id):
     # return redirect('employee_profile')          
     
             
-                        
-                
-# def mrn_account_entry(Request,id):
-#     mrn = Material_Receipt_Note.objects.get(id=id)
-#     if mrn.gate_entry.po.business == 2:
-#         item = mrn.gate_entry.po.quotation.item
-#         creditable = State_Tax_on_Sale_Of_Goods.objects.filter(item=item)
-#         for credit in creditable:
-#             if creditable:
-#         inv_account = item.account
-#         inventory_account = Account_Chart.objects.get(id=inv_account)
-#         supplier = mrn.gate_entry.po.quotation.supplier
-#         sup_account = supplier.account
-#         supplier_account = Account_Chart.objects.get(id=sup_account)
-#         freight_provision_account = Account_Chart.objects.get(id=3)
-#         value = mrn.value
-#         vat = mrn.vat
-#         cst = mrn.cst
-#         cgst = mrn.cgst
-#         sgst = mrn.sgst
-#         igst = mrn.igst
-#         freight = mrn.freight
-#         cgst_freight = mrn.cgst_freight
-#         sgst_freight = mrn.sgst_freight
-#         igst_freight = mrn.igst_freight
-#         custom_duty = mrn.custom_duty
-#         excise_levies = mrn.excise_levies
-#         custom_clearance = mrn.custom_clearance
-#         mrn.landed_cost = value + vat + cst + cgst + sgst + igst + freight + cgst_freight +sgst_freight + igst_freight + custom_duty +custom_clearance + excise_levies
-        
-                    
+def receipt_pending_matching(request):
+    # This view extract the the receipt not vouchered data based on matching status field
+    receipt_pending_matching = Receipt_Not_Vouchered.objects.filter(matching_status=False).order_by('-transaction_date')
+    return render(request, 'inventory/receipts_pending_matching.html', {'receipt_pending_matching': receipt_pending_matching})
 
+def retrieve_mrn(request,mrn):
+    # This view retrieves the MRN based on the mrn_no provided in the URL
+    print(mrn, 1049)
+    try:
+        mrn_item = Mrn_Items.objects.filter(mrn=mrn)
+        ic(mrn_item, 1050)
+        return render(request, 'inventory/mrn_detail.html', {'mrn_item':mrn_item})
+    except Material_Receipt_Note.DoesNotExist:
+        messages.error(request, "MRN not found.")
+        return redirect('receipt_pending_matching')
+    
+
+def receipt_matching(request,id):
+    matching_instance = Receipt_Not_Vouchered.objects.get(id=id)
+    if request.method == 'POST':
+        form =Matching_Form(request.POST, instance=matching_instance)
+        if form.is_valid():
+            transaction_number = form.cleaned_data['transaction_number']
+            supplier_account = form.cleaned_data['supplier_account']
+            voucher_type = form.cleaned_data['voucher_type']
+            invoice_number = form.cleaned_data['invoice_number']
+            invoice_date = form.cleaned_data['invoice_date']
+            invoice_value = form.cleaned_data['invoice_value']
+            provision_amount = form.cleaned_data['provision_amount']
+            tax_account = form.cleaned_data['tax_account']
+            tax_provision_amount= form.cleaned_data['tax_amount']
+            matching_instance = form.save(commit=False)
+            
+            # Pass Accounting Entry revese the receipt_not_vouchered and crediting the supplier account for any difference in provision and actual value debit or credit matching_difference_account in account_chart
+            if voucher_type != 'Freight':
+                difference_account = Account_Chart.objects.get(id=matching_instance.matching_difference_account.id) 
+                
+                Inv_Transaction.objects.create(
+                    transaction_number=transaction_number,
+                    transaction_type=matching_instance.transaction_type,
+                    transaction_cat='Debit',
+                    unit=matching_instance.unit,
+                    debit_amount=matching_instance.provision_value,
+                    credit_amount=0,
+                    account_chart=account_chart,
+                    reference=f"Debit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}"
+                    )
+                update_account_chart(id=account_chart.id, debit_amount=difference, credit_amount=0)
+                # credit the supplier account with invoice value
+                Inv_Transaction.objects.create(
+                transaction_number=transaction_number,
+                transaction_type=matching_instance.transaction_type,
+                transaction_cat='Credit',
+                unit=matching_instance.unit,
+                debit_amount=0,
+                credit_amount=matching_instance.invoice_value,
+                account_chart=matching_instance.supplier.account,
+                reference=f"Credit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}"
+                )
+                update_account_chart(id=supplier_account.id, debit_amount=0, credit_amount=matching_instance.invoice_value)
+                if matching_instance.invoice_value != matching_instance.provision_value:            
+                    difference = (matching_instance.invoice_value - matching_instance.provision_value)
+                    # If invoice value is greater than provision value, credit the difference account
+                    if difference > 0:
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=matching_instance.transaction_type,
+                            transaction_cat='Debit',
+                            unit=matching_instance.unit,
+                            debit_amount=difference,
+                            credit_amount=0,
+                            account_chart=difference_account,
+                            reference=f"Debit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}"
+                        )
+                        update_account_chart(id=difference_account.id, debit_amount=difference, credit_amount=0)
+                        Inv_Transaction.objects.create(
+                        transaction_number=transaction_number,
+                        transaction_type=matching_instance.transaction_type,
+                        transaction_cat='Credit',
+                        unit=matching_instance.unit,
+                        debit_amount=0,
+                        credit_amount=difference,
+                        account_chart=difference_account,
+                        reference=f"Credit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}"
+                        )
+                        update_account_chart(id=difference_account.id, debit_amount=0, credit_amount=difference)
+                    elif difference < 0:
+                        # If invoice value is less than provision value, debit the difference account
+                        difference = abs(difference)
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=matching_instance.transaction_type,
+                            transaction_cat='Credit',
+                            unit=matching_instance.unit,
+                            debit_amount=0,
+                            credit_amount=difference,
+                            account_chart=difference_account,
+                            reference=f"Credit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}"
+                            )
+                        update_account_chart(id=difference_account.id, debit_amount=0, credit_amount=difference)
+                    else:
+                        provisional_invoice_amount= provision_amount-tax_provision_amount
+                        difference = Decimal(invoice_value - provisional_invoice_amount)
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number, 
+                            transaction_type=matching_instance.transaction_type,
+                            transaction_cat='Debit',
+                            unit=matching_instance.unit,
+                            debit_amount=provision_amount,
+                            credit_amount=0,
+                            account_chart = matching_instance.account,  
+                            reference=f"Debit entry for matching difference of {matching_instance.invoice_value} and provision value {matching_instance.provision_value} for {matching_instance.supplier} on {matching_instance.transaction_date}")
+                else:
+                    # If invoice value is equal to provision value, do nothing
+                    pass
+                # update supplier_invoice_status table
+                supplier_invoice_status, created = Supplier_Invoice_Status.objects.get_or_create(
+                    supplier=matching_instance.supplier,
+                    invoice_number=matching_instance.invoice_number,
+                    invoice_date=matching_instance.invoice_date,
+                    defaults={'invoice_value': matching_instance.invoice_value}
+                )  
+                   
+            return redirect('receipt_pending_matching')
+    else:
+        form = Matching_Form(instance=matching_instance)
+    return render(request, 'inventory/forms/receipt_matching.html', {'form': form, 'matching_instance': matching_instance})    
+                
+from dataclasses import dataclass
+
+@dataclass
+class MRNValidationSummary:
+    mrn: Material_Receipt_Note
+    total_qty: float
+    total_base_value: float
+    total_vat: float
+    total_cst: float
+    total_cgst: float
+    total_sgst: float
+    total_igst: float
+    total_freight: float
+    total_landed_cost: float
+
+    # Validation flags
+    qty_validated: bool = False
+    base_value_validated: bool = False
+    vat_validated: bool = False
+    cst_validated: bool = False
+    cgst_validated: bool = False
+    sgst_validated: bool = False
+    igst_validated: bool = False
+    freight_validated: bool = False
+    cgst_freight_validated: bool = False
+    sgst_freight_validated: bool = False
+    igst_freight_validated: bool = False
+    landed_cost_validated: bool = False
+    
+def mrn_awaiting_supplier_match(request):
+    unit= request.user.user_roles.unit
+    mrns = Material_Receipt_Note.objects.prefetch_related('items').filter(unit=unit,items__supplier_match=False).annotate(
+        total_value=Sum('items__value'),
+        total_vat= Sum('items__vat'),
+        total_cst = Sum('items__cst'),
+        total_cgst= Sum('items__cgst'), 
+        total_sgst = Sum('items__sgst'),
+        total_igst=  Sum('items__igst'),
+        total_qty=Sum('items__invoice_quantity'),
+        
+        )
+    # for mrn in mrns:
+        # print(mrn.mrn_number,mrn.total_landed_cost,mrn.total_qty, 1132)
+    
+    return render(request, 'inventory/mrn_awaiting_supplier_match.html', {'mrns': mrns})
+    
+    
+
+def validate_mrn_invoice(request, mrn):
+    """
+    This view validates each field of MRN items and stores the validation status in the Mrn_Items table.
+    You should add Boolean fields like qty_validated, base_value_validated, vat_validated, etc. to your Mrn_Items model.
+    """
+    mrn_items = Mrn_Items.objects.filter(mrn=mrn)
+    for item in mrn_items:
+        supplier = item.mrn.gate_entry.po.quotation.supplier
+        unit = item.mrn.unit
+        credit_days = item.mrn.gate_entry.po.quotation.credit_terms
+    # Aggregate totals
+    summary = mrn_items.aggregate(
+        total_qty=Sum('invoice_quantity'),
+        total_base=Sum('value'),
+        total_vat=Sum('vat'),
+        total_cst=Sum('cst'),
+        total_cgst=Sum('cgst'),
+        total_sgst=Sum('sgst'),
+        total_igst=Sum('igst'),
+        total_freight=Sum('freight'),
+        total_cgst_freight=Sum('cgst_freight'),
+        total_sgst_freight=Sum('sgst_freight'),
+        total_igst_freight=Sum('igst_freight'),
+        landed_cost=Sum('landed_cost')
+    )
+
+    if request.method == 'POST':
+        with db_transaction.atomic():
+            form = SupplierInvoiceForm(request.POST, initial={'supplier': supplier,'unit':unit})
+            if form.is_valid():
+                # Process the form data
+                transaction_type = form.cleaned_data['transaction_type']
+                unit = form.cleaned_data['unit']
+                supplier = form.cleaned_data['supplier']
+                invoice_number = form.cleaned_data['invoice_number']
+                invoice_date = form.cleaned_data['invoice_date']
+                invoice_value = form.cleaned_data['invoice_value']
+                vat = form.cleaned_data['vat']
+                cst =  form.cleaned_data['cst']
+                cgst = form.cleaned_data['cgst']
+                sgst = form.cleaned_data['sgst']
+                igst = form.cleaned_data['igst']
+                match_type = form.cleaned_data['match_type']
+                supplier_location = supplier.location
+                user = User.objects.get(id=supplier.user.id)
+                profile = Supplier_Profile.objects.get(user=user)
+                is_sez = profile.is_sez
+                supply_type = profile.supply_type
+                
+                if supplier_location == 'Overseas':
+                    is_imported = True
+                else:
+                    is_imported = False            
+                transaction_number = generate_document_number(
+                    model_class=Supplier_Invoice,
+                    transaction_type=transaction_type,
+                    unit=unit,
+                    number_field='transaction_number'
+                )
+                
+                nature_of_supply = determine_supply_nature(
+                    supplier_state=supplier.supplier_state,
+                    recipient_location=unit.state,
+                    is_imported= is_imported,
+                    is_sez= is_sez,
+                    supply_type= supply_type
+                )
+                
+                place_of_supply = unit.state
+                aggregate_invoice_value = aggregate_tds = 0
+                threshold = 5000000  # 50 lacs
+                if supplier_location =='India':
+                    last_invoice = Supplier_Invoice.objects.filter(supplier=supplier).last()
+                    if last_invoice:
+                        aggregate_invoice_value = last_invoice.aggregate_invoice_value or 0
+                        aggregate_tds = last_invoice.aggregate_tds or 0
+                        new_aggregate_invoice_value = aggregate_invoice_value +invoice_value
+                        
+                        if aggregate_invoice_value < threshold and new_aggregate_invoice_value > threshold:
+                            # Threshold crossed in this invoice
+                            tds_base = Decimal(new_aggregate_invoice_value - threshold)
+                            rate = Decimal(0.1)
+                            tds = tds_base * rate / 100
+                            aggregate_invoice_value = new_aggregate_invoice_value
+                        elif aggregate_invoice_value > threshold:
+                            # Threshold already crossed, deduct TDS on full invoice_value
+                            rate = Decimal(0.1)
+                            tds = invoice_value * rate / 100
+                            aggregate_tds += tds
+                            aggregate_invoice_value+=invoice_value
+                        else:
+                            tds = 0
+                        aggregate_tds += tds
+                    else:
+                        aggregate_invoice_value = invoice_value
+                        tds = 0
+                        aggregate_tds = tds
+                    
+                gross_value = invoice_value + vat + cst + cgst + sgst + igst
+                net_payable = gross_value - tds
+                
+                Supplier_Invoice.objects.create(
+                    transaction_type = transaction_type,
+                    transaction_number = transaction_number,
+                    supplier = Supplier.objects.get(id= supplier.id),
+                    unit = unit,
+                    invoice_number=invoice_number,
+                    invoice_date = invoice_date,
+                    invoice_value = invoice_value,
+                    vat = vat,
+                    due_date = invoice_date + timedelta(days=credit_days),
+                    cst = cst,
+                    cgst = cgst,
+                    sgst= sgst,
+                    igst = igst,
+                    nature_of_supply=nature_of_supply,
+                    place_of_supply= place_of_supply,
+                    gross_invoice_value= gross_value,
+                    net_payable=net_payable,
+                    aggregate_invoice_value=aggregate_invoice_value,
+                    tds_194q = tds,
+                    aggregate_tds = aggregate_tds,
+                    created_by = request.user
+                )
+               
+                                
+                # pass accounting Entries 
+                # Accounting entries for supplier invoice matching
+
+                # 1. Credit the supplier account with the invoice value
+                Inv_Transaction.objects.create(
+                    transaction_number=transaction_number,
+                    transaction_type=transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=gross_value,
+                    account_chart=supplier.account,
+                    reference=f"Credit supplier {supplier} for invoice {invoice_number} dated {invoice_date}"
+                )
+
+                # Track total debits and credits for validation
+                total_debits = 0
+                total_credits = gross_value
+
+                # 2. Credit TDS payable if applicable
+                if tds > 0:
+                    tds_account = Account_Chart.objects.get(id=47)  # Replace with actual TDS account id
+                    Inv_Transaction.objects.create(
+                        transaction_number=transaction_number,
+                        transaction_type=transaction_type,
+                        transaction_cat='Credit',
+                        unit=unit,
+                        debit_amount=0,
+                        credit_amount=tds,
+                        account_chart=tds_account,
+                        reference=f"Credit TDS for invoice {invoice_number}"
+                    )
+                    update_account_chart(id=tds_account.id, debit_amount=0, credit_amount=tds)
+                    total_credits += tds
+                    #debit Supplier account with TDS
+                    Inv_Transaction.objects.create(
+                        transaction_number=transaction_number,
+                        transaction_type=transaction_type,
+                        transaction_cat='Debit',
+                        unit=unit,
+                        debit_amount=tds,
+                        credit_amount=0,
+                        account_chart=Account_Chart.objects.get(id=supplier.account.id),
+                        reference=f"Debit towards TDS for invoice f'{invoice_number} date {invoice_date}'"
+                    )
+                    update_account_chart(id=tds_account.id, debit_amount=0, credit_amount=tds)
+                    total_debits += tds
+
+                # 3. Debit the Provision Account with the provisioned value (assume provision_value is available)
+                provision_value = (
+                    (summary.get('total_base', 0) or 0) +
+                    (summary.get('total_vat', 0) or 0) +
+                    (summary.get('total_cst', 0) or 0) +
+                    (summary.get('total_cgst', 0) or 0) +
+                    (summary.get('total_sgst', 0) or 0) +
+                    (summary.get('total_igst', 0) or 0)
+                )
+                provision_account = Account_Chart.objects.get(id=43)  # Replace with actual Provision account id
+                Inv_Transaction.objects.create(
+                    transaction_number=transaction_number,
+                    transaction_type=transaction_type,
+                    transaction_cat='Debit',
+                    unit=unit,
+                    debit_amount=provision_value,
+                    credit_amount=0,
+                    account_chart=provision_account,
+                    reference=f"Debit Provision Account for invoice {invoice_number}"
+                )
+                update_account_chart(id=provision_account.id, debit_amount=invoice_value, credit_amount=0)
+                total_debits += gross_value
+
+                # 4. Handle difference between invoice_value and provision_value
+                # Calculate provision_value as sum of total_base, vat, cst, cgst, sgst, igst
+                
+                difference = gross_value - provision_value
+                if abs(difference) > 100:
+                    form.add_error(None, "Invoice value and provision do not match (difference exceeds Rs. 100).")
+                    return render(request, 'inventory/validate_mrn_invoice.html', {
+                        'mrn': mrn,
+                        'summary': summary,
+                        'form': form
+                    })
+                if difference != 0:
+                    matching_difference_account = Account_Chart.objects.get(id=87)  # Replace with actual Matching Difference account id
+                    if difference > 0:
+                        # Debit the difference to matching_difference account
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=transaction_type,
+                            transaction_cat='Debit',
+                            unit=unit,
+                            debit_amount=abs(difference),
+                            credit_amount=0,
+                            account_chart=matching_difference_account,
+                            reference=f"Debit Matching Difference for invoice {invoice_number}"
+                        )
+                        update_account_chart(id=matching_difference_account.id, debit_amount=abs(difference), credit_amount=0)
+                        total_debits += abs(difference)
+                    elif difference < 0:
+                        # Credit the difference to matching_difference account
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=transaction_type,
+                            transaction_cat='Credit',
+                            unit=unit,
+                            debit_amount=0,
+                            credit_amount=abs(difference),
+                            account_chart=matching_difference_account,
+                            reference=f"Credit Matching Difference for invoice {invoice_number}"
+                        )
+                        update_account_chart(id=matching_difference_account.id, debit_amount=0, credit_amount=abs(difference))
+                        total_credits += abs(difference)
+                    else:
+                        pass
+                
+
+                # Final check: Debits and Credits must match
+                if round(total_debits, 2) != round(total_credits, 2):
+                    raise db_transaction.TransactionManagementError(
+                        f"Debit ({total_debits}) and credit ({total_credits}) amounts do not match, rolling back transaction."
+                    )
+                if 'Supplier_Match':
+                    print(True)
+                    
+                    # Update the Mrn_Items table to mark items as supplier matched
+                    Mrn_Items.objects.filter(mrn=mrn).update(supplier_match=True)
+                else:
+                    Mrn_Items.objects.filter(mrn=mrn).update(freight_match=True)
+                                    
+                return redirect('mrn_awaiting_supplier_match')
+            else:
+                print('form is not valid', form.errors)
+    else:
+        form = SupplierInvoiceForm(initial={'supplier': supplier,'unit':unit})
+
+    return render(request, 'inventory/validate_mrn_invoice.html', {
+        'mrn': mrn,
+        'summary': summary,
+        'form': form
+    })
+
+@dataclass
+class MRNValidationSummary:
+    mrn: Material_Receipt_Note
+    total_qty: float    
+    total_freight: float
+    total_cgst_freight: float
+    total_sgst_freight: float
+    total_igst_freight: float
+    
+
+    # Validation flags
+    qty_validated: bool = False    
+    freight_validated: bool = False
+    cgst_freight_validated: bool = False
+    sgst_freight_validated: bool = False
+    igst_freight_validated: bool = False
+def validate_freight_invoice(request):
+    """
+    Validates a freight invoice raised against multiple MRNs.
+    Aggregates totals and posts accounting entries accordingly.
+    """
+    unit = request.user.user_roles.unit
+    summary = {}
+    mrn_items = Mrn_Items.objects.none()
+    transporter = None
+
+    if request.method == 'POST':
+        form = FreightInvoiceForm(request.POST,unit=unit)
+        selected_mrns = form.cleaned_data.get('mrns', [])  # assume checkbox/multiselect in form
+
+        if form.is_valid() and selected_mrns:
+            with db_transaction.atomic():
+                transaction_type = form.cleaned_data['transaction_type']
+                unit = form.cleaned_data['unit']
+                transporter = form.cleaned_data['supplier']
+                invoice_number = form.cleaned_data['invoice_number']
+                invoice_date = form.cleaned_data['invoice_date']
+                invoice_value = form.cleaned_data['invoice_value']
+                match_type = form.cleaned_data['match_type']
+
+                supplier_location = transporter.supplier_state
+                user = transporter.user
+                profile = Supplier_Profile.objects.get(user=user)
+                is_sez = profile.is_sez
+                supply_type = profile.supply_type
+                is_imported = (supplier_location == 'Overseas')
+
+                # Fetch all MRNs and related items
+                mrns = Material_Receipt_Note.objects.filter(id__in=selected_mrns)
+                mrn_items = Mrn_Items.objects.filter(mrn__in=mrns, unit=unit)
+
+                # Calculate totals across all MRNs
+                summary = mrn_items.aggregate(
+                    total_qty=Sum('invoice_quantity'),
+                    total_freight=Sum('freight'),
+                    total_cgst_freight=Sum('cgst_freight'),
+                    total_sgst_freight=Sum('sgst_freight'),
+                    total_igst_freight=Sum('igst_freight'),
+                )
+
+                transaction_number = generate_document_number(
+                    model_class=Supplier_Invoice,
+                    transaction_type=transaction_type,
+                    unit=unit,
+                    number_field='transaction_number'
+                )
+
+                nature_of_supply = determine_supply_nature(
+                    supplier_state=transporter.supplier_state,
+                    recipient_location=unit.state,
+                    is_imported=is_imported,
+                    is_sez=is_sez,
+                    supply_type=supply_type
+                )
+
+                place_of_supply = unit.state
+                tds = calculate_tds(supplier=transporter, service_classification=1, inr_value=invoice_value)
+
+                # Tax components (optional, based on levy mode)
+                cgst_freight = summary.get('total_cgst_freight') or 0
+                sgst_freight = summary.get('total_sgst_freight') or 0
+                igst_freight = summary.get('total_igst_freight') or 0
+
+                if transporter.service.levy_mode == 'RCM':
+                    gross_value = invoice_value
+                    net_payable = gross_value - tds
+                else:
+                    gross_value = invoice_value + cgst_freight + sgst_freight + igst_freight
+                    net_payable = gross_value - tds
+
+                # Create Supplier Invoice
+                Supplier_Invoice.objects.create(
+                    transaction_type=transaction_type,
+                    transaction_number=transaction_number,
+                    supplier=transporter,
+                    unit=unit,
+                    invoice_number=invoice_number,
+                    invoice_date=invoice_date,
+                    invoice_value=invoice_value,
+                    nature_of_supply=nature_of_supply,
+                    place_of_supply=place_of_supply,
+                    gross_invoice_value=gross_value,
+                    net_payable=net_payable,
+                    created_by=request.user
+                )
+
+                # ---- ACCOUNTING ENTRIES ----
+                total_debits = 0
+                total_credits = 0
+
+                # 1. Credit supplier
+                Inv_Transaction.objects.create(
+                    transaction_number=transaction_number,
+                    transaction_type=transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=gross_value,
+                    account_chart=transporter.account,
+                    reference=f"Freight Invoice {invoice_number}"
+                )
+                total_credits += gross_value
+
+                # 2. TDS
+                if tds > 0:
+                    tds_account = Account_Chart.objects.get(id=47)
+                    Inv_Transaction.objects.create(
+                        transaction_number=transaction_number,
+                        transaction_type=transaction_type,
+                        transaction_cat='Credit',
+                        unit=unit,
+                        debit_amount=0,
+                        credit_amount=tds,
+                        account_chart=tds_account,
+                        reference=f"TDS on Freight Invoice {invoice_number}"
+                    )
+                    update_account_chart(tds_account.id, 0, tds)
+                    total_credits += tds
+
+                    Inv_Transaction.objects.create(
+                        transaction_number=transaction_number,
+                        transaction_type=transaction_type,
+                        transaction_cat='Debit',
+                        unit=unit,
+                        debit_amount=tds,
+                        credit_amount=0,
+                        account_chart=transporter.account,
+                        reference=f"TDS adjusted for Freight Invoice {invoice_number}"
+                    )
+                    total_debits += tds
+
+                # 3. Debit Provision account
+                provision_value = sum([
+                    summary.get('total_freight') or 0,
+                    summary.get('total_cgst_freight') or 0,
+                    summary.get('total_sgst_freight') or 0,
+                    summary.get('total_igst_freight') or 0
+                ])
+                provision_account = Account_Chart.objects.get(id=43)
+                Inv_Transaction.objects.create(
+                    transaction_number=transaction_number,
+                    transaction_type=transaction_type,
+                    transaction_cat='Debit',
+                    unit=unit,
+                    debit_amount=provision_value,
+                    credit_amount=0,
+                    account_chart=provision_account,
+                    reference=f"Provision clearing for invoice {invoice_number}"
+                )
+                update_account_chart(provision_account.id, provision_value, 0)
+                total_debits += provision_value
+
+                # 4. Handle difference
+                difference = gross_value - provision_value
+                if abs(difference) > 100:
+                    form.add_error(None, "Invoice value and provision mismatch (above ₹100).")
+                    return render(request, 'inventory/validate_mrn_invoice.html', {
+                        'form': form,
+                        'summary': summary,
+                        'mrns': Material_Receipt_Note.objects.filter(unit=unit)
+                    })
+
+                if difference != 0:
+                    diff_account = Account_Chart.objects.get(id=87)
+                    if difference > 0:
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=transaction_type,
+                            transaction_cat='Debit',
+                            unit=unit,
+                            debit_amount=abs(difference),
+                            credit_amount=0,
+                            account_chart=diff_account,
+                            reference=f"Debit Matching Difference for Freight Invoice {invoice_number}"
+                        )
+                        update_account_chart(diff_account.id, abs(difference), 0)
+                        total_debits += abs(difference)
+                    else:
+                        Inv_Transaction.objects.create(
+                            transaction_number=transaction_number,
+                            transaction_type=transaction_type,
+                            transaction_cat='Credit',
+                            unit=unit,
+                            debit_amount=0,
+                            credit_amount=abs(difference),
+                            account_chart=diff_account,
+                            reference=f"Credit Matching Difference for Freight Invoice {invoice_number}"
+                        )
+                        update_account_chart(diff_account.id, 0, abs(difference))
+                        total_credits += abs(difference)
+
+                # Final debit-credit check
+                if round(total_debits, 2) != round(total_credits, 2):
+                    raise db_transaction.TransactionManagementError(
+                        f"Debit ({total_debits}) and Credit ({total_credits}) mismatch."
+                    )
+
+                # Mark all involved MRNs as freight matched
+                mrn_items.update(freight_match=True)
+
+                return redirect('mrn_report_view')
+
+    else:   
+        form = FreightInvoiceForm(initial={'unit': unit})
+
+    mrns = Material_Receipt_Note.objects.filter(unit=unit, items__freight_match=False)
+
+    return render(request, 'inventory/validate_mrn_invoice.html', {
+        'form': form,
+        'mrns': mrns,
+        'summary': summary
+    })
+  
+def submit_freight_invoice(request):
+    unit = request.user.user_roles.unit
+    if request.method == 'POST':
+        with db_transaction.atomic():
+            try:
+                form = FreightInvoiceForm(request.POST)
+                if form.is_valid():
+                    invoice = Supplier_Invoice.objects.create(
+                        transaction_type=form.cleaned_data['transaction_type'],
+                        transaction_number=generate_document_number(
+                            model_class=Supplier_Invoice,
+                            transaction_type=form.cleaned_data['transaction_type'],
+                            unit=form.cleaned_data['unit'],
+                            number_field='transaction_number'
+                        ),
+                        supplier=form.cleaned_data['supplier'],
+                        unit=form.cleaned_data['unit'],
+                        invoice_number=form.cleaned_data['invoice_number'],
+                        invoice_date=form.cleaned_data['invoice_date'],
+                        invoice_value=form.cleaned_data['invoice_value'],                
+                        gross_invoice_value=form.cleaned_data['invoice_value'],
+                        created_by=request.user
+                    )
+                    messages.success(request,'Invoice Successfully Submitted')
+            except Exception as e:
+                db_transaction.set_rollback(True)
+                messages.error(request, f'Error in Submitting Invoice: {e}')
+            
+        
+    else:
+        form = FreightInvoiceForm(initial={'unit': unit})
+    return render(request, 'inventory/submit_freight_invoice.html', {'form': form})
+
+def invoice_pending_matching(request):
+    """
+    View to list all supplier invoices that are pending matching with MRNs.
+    """
+    unit = request.user.user_roles.unit
+    invoices = Supplier_Invoice.objects.filter(
+        unit=unit,
+        is_processed = False,
+        transaction_type = 29      
+        
+    )
+    
+    return render(request, 'inventory/freight_invoice_pending_matching.html', {'invoices': invoices})
+
+def match_freight_to_mrns(request, id):
+    invoice = Supplier_Invoice.objects.get(id=id)
+    unit = invoice.unit
+    # supplier = invoice.supplier
+    mrns = Material_Receipt_Note.objects.filter(
+        unit=unit,
+        items__freight_match=False,
+        items__freight__gt=0        
+        )
+    
+    # sum freight,cgst_freight,sgst_freight,igst_fregight in mrns
+    mrns = mrns.annotate(
+        total_freight=Sum('items__freight'),
+        total_cgst_freight=Sum('items__cgst_freight'),
+        total_sgst_freight=Sum('items__sgst_freight'),
+        total_igst_freight=Sum('items__igst_freight')
+    ).distinct()
+    
+    if request.method == 'POST':
+        selected_mrns = list(map(int, request.POST.getlist('mrns')))
+        items = Mrn_Items.objects.filter(mrn__in=selected_mrns)
+        po = items.first().mrn.gate_entry.po
+        service = po.freight.service
+        totals = items.aggregate(
+            total_freight=Sum('freight'),
+            total_cgst=Sum('cgst_freight'),
+            total_sgst=Sum('sgst_freight'),
+            total_igst=Sum('igst_freight')
+        )        
+        total_freight = totals.get('total_freight')
+        total_cgst_freight = totals.get('total_cgst')
+        total_sgst_freight = totals.get('total_sgst')   
+        total_igst_freight = totals.get('total_igst')
+                
+        diff = invoice.gross_invoice_value - total_freight
+
+        if abs(diff) > 1000:
+            return render(request, 'inventory/match_freight_to_mrns.html', {
+                'invoice': invoice,
+                'mrns': mrns,
+                'error': 'Difference exceeds ₹100.',
+                'totals': totals
+            })
+
+        # All good — update and post entries        
+        tds =calculate_tds(service_classification=1,inr_value=invoice.gross_invoice_value,supplier=User.objects.get(id=invoice.supplier.user.id))
+        
+        if service.levy_mode == 'RCM':            
+            credit_supplier =invoice.gross_invoice_value
+            gst=gst_on_service(
+                po=po,value=invoice.gross_invoice_value,service=service,supplier_state=invoice.supplier.supplier_state
+            )
+           # extract cgst,sgst,igst from gst
+            cgst_freight = gst.get('CGST')
+            sgst_freight = gst.get('SGST')
+            igst_freight = gst.get('IGST')    
+            
+        else:
+            credit_supplier = invoice.gross_invoice_value + cgst_freight + sgst_freight + igst_freight
+        nature_of_supply = determine_supply_nature(
+            supplier_state=invoice.supplier.supplier_state,
+            recipient_location=unit.state,
+            is_imported=False,  # Assuming not imported for freight)
+            is_sez=False,  # Assuming not SEZ for freight
+            supply_type= service
+            )
+        credit_terms = po.freight.credit_terms        
+        place_of_supply = str(unit.state)
+        invoice.nature_of_supply = nature_of_supply
+        invoice.place_of_supply = place_of_supply
+        invoice.cgst_freight = cgst_freight
+        invoice.sgst_freight = sgst_freight
+        invoice.igst_freight = igst_freight
+        invoice.gross_invoice_value = invoice.invoice_value
+        invoice.net_payable = invoice.gross_invoice_value - tds
+        invoice.tds_194q = tds
+        invoice.due_date = invoice.invoice_date + timedelta(days=credit_terms)         
+        debit_provision = total_freight+total_cgst_freight+total_sgst_freight+total_igst_freight
+        invoice_credit = invoice.gross_invoice_value + cgst_freight + sgst_freight + igst_freight 
+        matching_difference = invoice_credit - debit_provision
+        invoice.is_processed = True
+        invoice.save()
+        items.update(freight_match=True)
+        # Post accounting entries (simplified)
+        total_debit=total_credits=0
+        #create debit entry for provision reversal
+        provision_account = Account_Chart.objects.get(id=43)
+        Inv_Transaction.objects.create(
+            transaction_number=invoice.transaction_number,
+            transaction_type=invoice.transaction_type,
+            transaction_cat='Debit',
+            unit=unit,
+            debit_amount=debit_provision,
+            credit_amount=0,
+            account_chart=provision_account,
+            reference=f"Provision Reversal for Freight Invoice {invoice.invoice_number}"
+        )
+        update_account_chart(id=provision_account.id, debit_amount=debit_provision, credit_amount=0)
+        total_debit += debit_provision
+        
+        Inv_Transaction.objects.create(
+            transaction_number=invoice.transaction_number,
+            transaction_type=invoice.transaction_type,
+            transaction_cat='Credit',
+            unit=unit,
+            credit_amount=credit_supplier,
+            debit_amount=0,
+            account_chart=invoice.supplier.account,
+            reference=f"Freight Invoice {invoice.invoice_number}"
+        )
+    
+        update_account_chart(id=invoice.supplier.account.id, debit_amount=0, credit_amount=credit_supplier)
+        total_credits += credit_supplier
+        # TDS entry
+        if tds > 0:
+            tds_account = Account_Chart.objects.get(id=47)
+            Inv_Transaction.objects.create(
+                transaction_number=invoice.transaction_number,
+                transaction_type=invoice.transaction_type,
+                transaction_cat='Credit',
+                unit=unit,
+                debit_amount=0,
+                credit_amount=tds,
+                account_chart=tds_account,
+                reference=f"TDS on Freight Invoice {invoice.invoice_number}"
+            )
+               
+            update_account_chart(id=tds_account.id, debit_amount=0, credit_amount=tds)
+            total_credits += tds
+            Inv_Transaction.objects.create(
+                transaction_number=invoice.transaction_number,
+                transaction_type=invoice.transaction_type,
+                transaction_cat='Debit',
+                unit=unit,
+                debit_amount=tds,
+                credit_amount=0,
+                account_chart=invoice.supplier.account,
+                reference=f"TDS adjusted for Freight Invoice {invoice.invoice_number}"
+            )
+            update_account_chart(id=invoice.supplier.account.id, debit_amount=tds, credit_amount=0)
+            total_debit += tds
+        if service.levy_mode == 'RCM':
+            # If RCM, pass Cgst_freight,sgst_freight,igst_freight  to payable account
+            if cgst_freight > 0:
+                cgst_account = Account_Chart.objects.get(id=po.freight.cgst_account.id)
+                Inv_Transaction.objects.create(
+                    transaction_number=invoice.transaction_number,
+                    transaction_type=invoice.transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=cgst_freight,
+                    account_chart=cgst_account,
+                    reference=f"RCM Cgst Freight for Invoice {invoice.invoice_number}"
+                )
+                update_account_chart(id=cgst_account.id, debit_amount=0, credit_amount= cgst_freight)
+                total_credits += cgst_freight
+            if sgst_freight > 0:
+                sgst_account = Account_Chart.objects.get(id=po.freight.sgst_account.id)
+                Inv_Transaction.objects.create(
+                    transaction_number=invoice.transaction_number,
+                    transaction_type=invoice.transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=sgst_freight,
+                    account_chart=sgst_account,
+                    reference=f"RCM Sgst Freight for Invoice {invoice.invoice_number}"
+                )
+                update_account_chart(id=sgst_account.id, debit_amount=0, credit_amount= sgst_freight)
+                total_credits += sgst_freight
+            if igst_freight > 0:
+                igst_account = Account_Chart.objects.get(id=po.freight.igst_account.id)
+                Inv_Transaction.objects.create(
+                    transaction_number=invoice.transaction_number,
+                    transaction_type=invoice.transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=igst_freight,
+                    account_chart=igst_account,
+                    reference=f"RCM Igst Freight for Invoice {invoice.invoice_number}"
+                )                
+                total_credits += igst_freight
+                update_account_chart(id=igst_account.id, debit_amount=0, credit_amount=igst_freight)
+                
+            
+            #pass entry for mathcihg difference
+            if matching_difference > 0:                
+                matching_difference_account = Account_Chart.objects.get(id=87)
+                Inv_Transaction.objects.create(
+                    transaction_number=invoice.transaction_number,
+                    transaction_type=invoice.transaction_type,
+                    transaction_cat='Debit',
+                    unit=unit,
+                    debit_amount= abs(matching_difference),
+                    credit_amount=0,
+                    account_chart=matching_difference_account,
+                    reference=f"Debit Matching Difference for Freight Invoice {invoice.invoice_number}"
+                )                   
+                update_account_chart(id=matching_difference_account.id, debit_amount=matching_difference, credit_amount=0)
+                total_debit += abs(matching_difference)
+            elif matching_difference < 0:
+                print(True, "matching difference is negative")
+                matching_difference_account = Account_Chart.objects.get(id=87)
+                Inv_Transaction.objects.create(
+                    transaction_number=invoice.transaction_number,
+                    transaction_type=invoice.transaction_type,
+                    transaction_cat='Credit',
+                    unit=unit,
+                    debit_amount=0,
+                    credit_amount=abs(matching_difference),
+                    account_chart=matching_difference_account,
+                    reference=f"Credit Matching Difference for Freight Invoice {invoice.invoice_number}"
+                )                   
+                update_account_chart(id=matching_difference_account.id, debit_amount=0, credit_amount=abs(matching_difference))
+                total_credits += abs(matching_difference)
+                # If total_debits and total_credit donot match rollback
+                print(f"Total Debit: {total_debit}, Total Credit: {total_credits}" )
+                
+                if total_debit != total_credits:
+                    raise(db_transaction.TransactionManagementError(rollback=True, message=f"Debit ({total_debit}) and Credit ({total_credits}) amounts do not match, rolling back transaction."))
+                                      
+        
+            return redirect('submit_freight_invoice')
+
+    return render(request, 'inventory/match_freight_to_mrns.html', {
+        'invoice': invoice,
+        'mrns': mrns,
+         
+        
+    })
+
+def select_bank(request):
+    """
+    View to select a bank account for payment processing.
+    """
+    if request.method == 'POST':
+        form = SelectBankForm(request.POST)
+        if form.is_valid():
+            account_chart = form.cleaned_data['account_chart']
+            return redirect('invoice_due_for_payment',id=account_chart.id)  # Redirect to the payment processing view
+    else:
+        form = SelectBankForm()
+
+    return render(request, 'accounts/forms/select_bank.html', {'form': form})
+
+
+def invoice_due_for_payment(request,id):
+    account_chart = get_object_or_404(Account_Chart, id=id)
+    today = timezone.now().date()
+    invoices = Supplier_Invoice.objects.filter(is_paid=False, due_date__lte=today)
+    
+    if request.method == 'POST':        
+        selected_ids = request.POST.getlist('selected_invoices')
+        if not selected_ids:
+            messages.error(request, "No invoices selected. Please select at least one invoice to process payment.")
+            return render(request, 'inventory/invoice_due_for_payment.html', {'invoices': invoices})
+        selected_invoices = Supplier_Invoice.objects.filter(id__in=selected_ids)
+        ic(selected_ids)
+
+        # Group by supplier and sum net_payable
+        supplier_totals = {}
+        for invoice in selected_invoices:
+            supplier = invoice.supplier
+            supplier_totals.setdefault(supplier, 0)
+            supplier_totals[supplier] += invoice.net_payable
+
+        transaction_type = Transaction_Type.objects.get(id=22)
+        transaction_number = generate_document_number(
+            model_class=Inv_Transaction,
+            transaction_type=transaction_type,
+            unit=request.user.user_roles.unit,
+            number_field='transaction_number'
+        )
+        total_debits = total_credits = 0
+
+        # Create a debit entry for each supplier
+        for supplier, amount in supplier_totals.items():
+            Inv_Transaction.objects.create(
+                transaction_number=transaction_number,
+                transaction_type=transaction_type,
+                transaction_cat='Debit',
+                unit=request.user.user_roles.unit,
+                debit_amount=amount,
+                credit_amount=0,
+                account_chart=supplier.account,
+                reference=f"Payment for supplier {getattr(supplier, 'supplier_name', str(supplier))}"
+            )
+            update_account_chart(id=supplier.account.id, debit_amount=amount, credit_amount=0)
+            total_debits += amount
+
+        # Sum total for all suppliers
+        total_payment = sum(supplier_totals.values())
+        # Create a credit entry for the bank account
+        Inv_Transaction.objects.create(
+            transaction_number=transaction_number,
+            transaction_type=transaction_type,
+            transaction_cat='Credit',
+            unit=request.user.user_roles.unit,
+            debit_amount=0,
+            credit_amount=total_payment,            
+            account_chart=account_chart,  # Bank account from form
+            reference=f"Bank Payment for Invoices {', '.join(str(inv.invoice_number) for inv in selected_invoices)}"
+        )
+        update_account_chart(id=account_chart.id, debit_amount=total_payment, credit_amount=0)
+        total_credits += total_payment
+
+        # Ensure debits and credits match
+        if total_debits != total_credits:
+            raise db_transaction.TransactionManagementError(
+                f"Debit ({total_debits}) and Credit ({total_credits}) amounts do not match, rolling back transaction."
+            )
+
+        # Update is_paid flag for selected invoices
+        selected_invoices.update(is_paid=True)
+
+        messages.success(request, f"Payment processed. Total: {total_payment}. Details: {supplier_totals}")
+        return redirect('select_bank')
+
+    return render(request, 'inventory/invoice_due_for_payment.html', {'invoices': invoices})
+    
+    
+
+
+# def BankPaymentVoucherView(request):
+#     """
+#     View to create a Bank Payment Voucher.
+#     """
+#     unit = request.user.user_roles.unit
+#     if request.method == 'POST':
+#         form = BankPaymentVoucherForm(request.POST, unit=unit)
+#         if form.is_valid():
+#             bank_payment = form.save(commit=False)
+#             bank_payment.unit = unit
+#             bank_payment.created_by = request.user
+#             bank_payment.save()
+#             messages.success(request, 'Bank Payment Voucher created successfully.')
+#             return redirect('create_bank_payment')  # Replace with your return URL
+#     else:
+#         form = BankPaymentVoucherForm(initial={'unit': unit})
+
+#     return render(request, 'inventory/create_bank_payment.html', {'form': form})
+
+
+
+
+# def knock_off_invoice_view(request, bank_payment_id, account_id):
+#     supplier = get_object_or_404(Supplier, account_id=account_id)
+#     bank_payment = get_object_or_404(BankPaymentVoucher, id=bank_payment_id)
+
+#     pending_invoices = Supplier_Invoice.objects.filter(
+#         is_paid=False,
+#         supplier=supplier,
+#         unit=request.user.user_roles.unit
+#     ).order_by('invoice_date')
+
+#     if request.method == 'POST':
+#         selected_invoice_ids = request.POST.getlist('selected_invoices')
+#         total_selected_amount = Decimal('0')
+#         paid_invoices = []
+
+#         for invoice_id in selected_invoice_ids:
+#             invoice = Supplier_Invoice.objects.get(id=invoice_id)
+#             if not invoice.is_paid:
+#                 total_selected_amount += invoice.net_payable
+#                 paid_invoices.append(invoice)
+
+#         # Update invoice is_paid = True
+#         for invoice in paid_invoices:
+#             invoice.is_paid = True
+#             invoice.save()
+
+#         # Create line item in BankPaymentVoucher
+#         BankPaymentLineItem.objects.create(
+#             bank_payment=bank_payment,
+#             supplier=supplier,
+#             amount=total_selected_amount
+#         )
+
+#         # Update total amount in main voucher
+#         bank_payment.total_amount += total_selected_amount
+#         bank_payment.save()
+
+#         messages.success(request, f"{len(paid_invoices)} invoices knocked off for ₹{total_selected_amount}.")
+#         return redirect('create_bank_payment')  # Replace with your return URL
+
+#     return render(request, 'inventory/knock_off_invoice.html', {
+#         'invoices': pending_invoices,
+#         'supplier': supplier,
+#         'bank_payment': bank_payment,
+#     })
+
+    
+
+
+    
 import django_filters
 
 class MRNFilter(django_filters.FilterSet):
@@ -1393,11 +2482,8 @@ class MRNFilter(django_filters.FilterSet):
     )
     class Meta:
         model = Material_Receipt_Note
-        fields = ['unit','mrn_date', 'quality_approval','form_c_issue_status']
-        # {
-        #     'unit': forms.Select(attrs={'class': 'form-control'}),
-        #     'mrn_date': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-        # }
+        fields = ['unit','mrn_date']
+        
         
         
 def mrn_report_view(request):

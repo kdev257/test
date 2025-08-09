@@ -1,0 +1,81 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+
+{% block title %}Match Freight Invoice{% endblock %}
+
+{% block main-content %}
+<h2>Match Freight Invoice: {{ invoice.invoice_number }}</h2>
+
+{% if error %}
+<p style="color:red">{{ error }}</p>
+{% endif %}
+
+<form method="post">
+  {% csrf_token %}
+  <p>Select MRNs to match:</p>
+  
+    <div>
+       <table class="table table-bordered">
+        <thead>
+          <tr>
+            <th>MRN Number</th>
+            <th>Transporter</th>
+            <th>LR Number</th>
+            <th>Freight</th>
+            <th>CGST</th>
+            <th>SGST</th>
+            <th>IGST</th>
+            <th>Match</th>
+            <th>Check to Select</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mrn in mrns %}
+          <tr>
+            
+            <td>{{ mrn.mrn_number }}</td>  
+            <td>{{ mrn.gate_entry.po.freight.transporter }}</td>  
+            <td>{{ mrn.gate_entry.lorry_receipt_number }}</td>  
+            
+            {% if mrn.total_freight > 0 %}                  
+            <td>{{mrn.total_freight }}</td>
+            {% else %}
+            <td style="color: red;">No Freight</td>
+            {% endif %}
+            {% if mrn.total_cgst_freight > 0 %}         
+            <td>{{ mrn.total_cgst_freight }}</td>
+            {% else %}
+            <td style="color: red;">No cgst</td>
+            {% endif %}
+            {% if mrn.total_sgst_freight > 0 %}         
+            <td>{{ mrn.total_sgst_freight }}</td>
+            {% else %}
+            <td style="color: red;">No sgst</td>
+            {% endif %}
+            {% if mrn.total_igst_freight > 0 %}         
+            <td>{{ mrn.total_igst_freight|floatformat:2 }}</td>           
+            {% else %}
+            <td style="color: red;">No igst</td>
+            {% endif %}
+            <td>                
+                {{ mrn.items.first.freight_match }}                
+            </td>
+            <td><label>
+              <input type="checkbox" name="mrns" value="{{ mrn.id }}">
+            </td>
+          
+          </tr>
+          
+        </tbody>
+        {% endfor %}
+
+      </table>
+
+        {{mrn.mrn.mrn_number}} {{supplier}}
+      </label>
+    </div>
+  
+  <button type="submit">Match and Post</button>
+</form>
+{%endblock%}

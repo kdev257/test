@@ -20,6 +20,9 @@
                     <a href="{% url 'bank_payment_view' %}" class="nav-link text-white">Create Bank Payment</a>
                 </li>
                 <li class="nav-item mb-2">
+                    <a href="{% url 'select_bank' %}" class="nav-link text-white">Supplier Payment</a>
+                </li>
+                <li class="nav-item mb-2">
                     <a href="{% url 'bank_receipt_view' %}" class="nav-link text-white">Create Bank Receipt</a>
                 </li>
                 <li class="nav-item mb-2">
@@ -38,14 +41,36 @@
                     <a href="{% url 'journal_entry' %}" class="nav-link text-white">Credit Note<a>
                 </li>
                 <li class="nav-item mb-2">
+                    <a href="{% url 'invoice_pending_matching' %}" class="nav-link text-white">Receipts Pending Match<a>
+                </li>
+                <li class="nav-item mb-2">
                     <a href="{% url 'update_account_chart_orm' %}" class="nav-link text-white">Update Account Chart</a>
                 </li>
                 <li class="nav-item mb-2">
                     <a href="#" class="nav-link text-white">Tasks</a>
                 </li>
                 <li class="nav-item mb-2">
-                    <a href="#" class="nav-link text-white">Reports</a>
+                    <a class="nav-link text-white" data-bs-toggle="collapse" href="#reportsMenu" role="button" aria-expanded="false" aria-controls="reportsMenu" onclick="toggleReportsMenu(event)">
+                        Reports
+                        <span class="float-end">&#9662;</span>
+                    </a>
+                    <div class="collapse" id="reportsMenu">
+                        <ul class="nav flex-column ms-3">
+                            <li class="nav-item mb-2">
+                                <a href="{% url 'create_journal' %}" class="nav-link text-white">Journal Report</a>
+                            </li>
+                            <!-- Add more report links here as needed -->
+                        </ul>
+                    </div>
                 </li>
+                <script>
+                function toggleReportsMenu(event) {
+                    event.preventDefault();
+                    var menu = document.getElementById('reportsMenu');
+                    var bsCollapse = bootstrap.Collapse.getOrCreateInstance(menu);
+                    bsCollapse.toggle();
+                }
+                </script>
                 <li class="nav-item mb-2">
                     <a href="#" class="nav-link text-white">Settings</a>
                 </li>
@@ -68,55 +93,4 @@
                 </div>
             </header>
 
-            <!-- Gate Entry Table -->
-            <table class="table table-hover">
-                <thead>
-                    <tr>
-                        <th>ID</th>
-                        <th>Gate Entry Number</th>
-                        <th>Gate Entry Date</th>
-                        <th>Truck Number</th>
-                        <th>Driver Name</th>
-                        <th>License Number</th>
-                        <th>Invoice Number</th>
-                        <th>Invoice Date</th>
-                        <th>Item</th>
-                        <th>Invoice Quantity</th>
-                        <th>Invoice Value</th>
-                        <th>MRN Number/Date</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% if mrn_queryset %}
-                        {% for ge in mrn_queryset %}
-                            <tr>
-                                <td>{{ ge.id }}</td>
-                                <td>{{ ge.gate_entry_number }}</td>
-                                <td>{{ ge.gate_entry_date }}</td>
-                                <td>{{ ge.truck_number }}</td>
-                                <td>{{ ge.driver_name }}</td>
-                                <td>{{ ge.license_number }}</td>
-                                <td>{{ ge.invoice_no }}</td>
-                                <td>{{ ge.invoice_date }}</td>
-                                <td>{{ ge.item }}</td>
-                                <td>{{ ge.invoice_quantity }}</td>
-                                <td>{{ ge.invoice_value }}</td>
-                                <td>{{ ge.mrn_number }}/{{ ge.mrn_date }}</td>
-                                <td>
-                                    <a href="{% url 'generate_mrn' ge.id %}">
-                                        <button class='button-primary'>Generate MRN</button>
-                                    </a>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    {% else %}
-                        <tr>
-                            <td colspan="13">No gate entries available.</td>
-                        </tr>
-                    {% endif %}
-                </tbody>
-            </table>
-        </main>
-    </div>
-</div>
+            

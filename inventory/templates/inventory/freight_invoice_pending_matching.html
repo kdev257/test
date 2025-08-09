@@ -1,0 +1,30 @@
+{% extends "inventory/index.html" %}
+{% load static %}
+{% load crispy_forms_tags %}
+{% block title %}Match Freight Invoice{% endblock %}
+
+{% block main-content %}
+<table class="table table-bordered">
+  <thead>
+    <tr>
+      <th>ID</th>
+      <th>Invoice Number</th>
+      <th>Invoice_Date</th>
+      <th>Amount</th>
+      <th>Action</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for invoice in invoices %}
+    <tr>
+      <td>{{ invoice.id }}</td>  
+      <td>{{ invoice.invoice_number }}</td>  
+      <td>{{ invoice.invoice_date }}</td>  
+      <td>{{ invoice.invoice_value}}</td>
+      <td><button class='btn btn-primary'><a href="{% url 'match_freight_to_mrns' invoice.id %}"></a>Match Invoice</button></td>  
+      
+    {% endfor %}
+  </tbody>
+
+</table>
+{% endblock %}

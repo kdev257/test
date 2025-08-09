@@ -247,9 +247,8 @@ class Material_Receipt_Note(models.Model):
     unload_report = models.ForeignKey(Vehicle_Unloading_Report,on_delete=models.CASCADE,related_name='unloaded_items',blank=True,null=True)
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)    
     mrn_number = models.CharField(max_length=100, blank=True,null=True,editable=False)
-    mrn_date = models.DateField(auto_now_add=True)      
-    e_way_bill_no = models.CharField(max_length=20)
-    quality_approval = models.BooleanField(default=False)    
+    mrn_date = models.DateField(auto_now_add=True)    
+    e_way_bill_no = models.CharField(max_length=20)    
     form_c_issue_status = models.BooleanField(default=False)
     form_no = models.CharField(max_length=50,blank=True,null=True)
     created = models.BooleanField(default=False)
@@ -264,7 +263,7 @@ class Material_Receipt_Note(models.Model):
         ]
         
     def __str__(self):
-        return f'{self.mrn_number}'
+        return f'{self.mrn_number} {self.mrn_date}'
     
     def save(self, *args, **kwargs):      
         self.unit = self.gate_entry.unit
@@ -281,7 +280,7 @@ class Material_Receipt_Note(models.Model):
   
 
 class Mrn_Items(models.Model):
-    mrn = models.ForeignKey(Material_Receipt_Note,on_delete=models.CASCADE,related_name='mrn_instance')
+    mrn = models.ForeignKey(Material_Receipt_Note,on_delete=models.CASCADE,related_name='items')
     item = models.ForeignKey(Item,on_delete=models.CASCADE,related_name='mrn_item')
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE,blank=True,null=True)
     invoice_quantity  = models.DecimalField(max_digits=15,decimal_places=2,blank=True,null=True)    
@@ -292,47 +291,101 @@ class Mrn_Items(models.Model):
     cgst = models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)    
     sgst = models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)    
     igst = models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)    
-    freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
-    cgst_freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
-    sgst_freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
-    igst_freight= models.DecimalField(max_digits=10,decimal_places=2,editable=False,default=0)
+    freight= models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    cgst_freight= models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    sgst_freight= models.DecimalField(max_digits=10,decimal_places=2,default=0)
+    igst_freight= models.DecimalField(max_digits=10,decimal_places=2,default=0)
     custom_duty = models.DecimalField(max_digits=50,decimal_places=2,default=0)
     excise_levies_import = models.DecimalField(max_digits=50,decimal_places=2,default=0)    
     excise_levies_export = models.DecimalField(max_digits=50,decimal_places=2,default=0)    
     custom_clearance = models.DecimalField(max_digits=50,decimal_places=2,default=0)
     landed_cost = models.DecimalField(max_digits=50,decimal_places=2,default=0)
     stock_location = models.ForeignKey(Unit_Sub_Location,on_delete=models.CASCADE,blank=True,null=True)
+    supplier_match = models.BooleanField(default=False,help_text='Pls. Tick if this item is matched with supplier invoice')
+    freight_match = models.BooleanField(default=False,help_text='Pls. Tick if this item is matched with freight invoice')
     
     def __str__(self):
         return f'{self.item} --{self.actual_quantity}'
     
+# class Mrn_Item_Cost_Element(models.Model):
+#     mrn_item = models.ForeignKey(Mrn_Items,on_delete=models.CASCADE,related_name='cost_element')
+#     cost_element = models.CharField(max_length=100,blank=True,null=True,help_text='Pls. Enter the cost element name')
+#     amount = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    
+#     def __str__(self):
+#         return f'{self.mrn_item} --{self.cost_element}--{self.value}'
+
 class Supplier_Invoice(models.Model):
-    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE,default=1)    
-    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)    
+    transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE,default=1)
+    transaction_number = models.CharField(max_length=30,blank=True,null=True)
+    transaction_date = models.DateField()    
+    unit = models.ForeignKey(Unit,on_delete=models.CASCADE,default=1)
+    supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE,related_name='supplier_invoice',blank=True,null=True)
     invoice_number = models.CharField(max_length=100, blank=True,null=True)
-    invoice_date = models.DateField(auto_now_add=True)    
+    invoice_date = models.DateField()    
     invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    vat = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    cst = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    cgst = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    sgst = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    igst = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    cgst_freight = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    sgst_freight = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    igst_freight = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    nature_of_supply = models.CharField(max_length=100,blank=True,null=True)
+    place_of_supply = models.CharField(max_length=50,blank=True,null=True)
+    gstr1_status = models.BooleanField(default=False,help_text='Pls. Tick if this  matches with GSTR-1')
+    gstr2b_status = models.BooleanField(default=False,help_text='Pls. Tick if this  matches with GSTR-2B')
+    gstr3b_status = models.BooleanField(default=False,help_text='Pls. Tick if this  matches with GSTR-3B')
+    gross_invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    net_payable = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    due_date = models.DateField(blank=True,null=True,help_text='Pls. Enter the due date for payment')
+    aggregate_invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0,)#field to store total of invoice base values for TDS deduction
+    tds_194q = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    aggregate_tds = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    created_by = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True)
     approved = models.BooleanField(default=False)
+    is_processed = models.BooleanField(default=False)
     is_paid = models.BooleanField(default=False)    
     approver = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True,related_name='invoice_approver')
     approval_date = models.DateField(blank=True,null=True)
+    created = models.DateTimeField(auto_now=True)
+    updated =models.DateTimeField(auto_now_add=True)
     
     def __str__(self):
         return f'{self.invoice_number} --{self.invoice_date}--{self.invoice_value}'
     
+    def save(self,*args, **kwargs):
+        if not self.transaction_date:
+            self.transaction_date = timezone.now()
+        
+        super().save(*args, **kwargs)
+            
+    
 class Receipt_Not_Vouchered(models.Model):
+    VOUCHER_TYPE_CHOICES = (
+        ('Purchase','Purchase'),
+        ('Freight','Freight'),
+        ('Service','Service'),
+    )
+    mrn = models.ForeignKey(Material_Receipt_Note, on_delete=models.CASCADE, related_name='receipt_not_vouchered_mrn',blank=True,null=True)
+    voucher_type = models.CharField(max_length=20, choices=VOUCHER_TYPE_CHOICES, default='Purchase', help_text='Pls. Select the type of voucher')
     transaction_type = models.ForeignKey(Transaction_Type,on_delete=models.CASCADE) 
     transaction_number = models.CharField(max_length=30)
     transaction_date = models.DateField(auto_now_add=True)   
     unit = models.ForeignKey(Unit,on_delete=models.CASCADE)
     supplier = models.ForeignKey(Supplier,on_delete=models.CASCADE,related_name='receipt_supplier')    
-    invoice_number = models.CharField(max_length=100, blank=True,null=True)
+    provision_amount = models.DecimalField(max_digits=20,decimal_places=2,default=0)    
+    invoice_number = models.CharField(max_length=200, blank=True,null=True)
     invoice_date = models.DateField()    
     invoice_value = models.DecimalField(max_digits=20,decimal_places=2,default=0)
+    tax_account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='receipt_tax_account')
+    tax_amount = models.DecimalField(max_digits=20,decimal_places=2,default=0) 
     approved = models.BooleanField(default=False)       
     approver = models.ForeignKey(User,on_delete=models.CASCADE,blank=True,null=True,related_name='receipt_approver')
     approval_date = models.DateField(blank=True,null=True)
     account = models.ForeignKey(Account_Chart,on_delete=models.CASCADE,blank=True,null=True,related_name='receipt_account')
+    matching_status = models.BooleanField(default=False)
     
     def __str__(self):
         return f'{self.invoice_number} --{self.invoice_date}--{self.invoice_value}'    
@@ -392,12 +445,16 @@ class Tax_Table(models.Model):
     igst = models.DecimalField(max_digits=20,decimal_places=2,blank=True,null=True)
     place_of_supply = models.CharField(max_length=50,blank=True,null=True)
     time_of_supply= models.DateTimeField(blank=True,null=True)    
-    section = models.CharField(max_length=20,blank=True,null=True)
+    tds_section = models.CharField(max_length=20,blank=True,null=True)
     classification= models.CharField(max_length=20,blank=True,null=True)   
     sub_classifcation=models.CharField(max_length=20,blank=True,null=True)
     deductee_type=models.CharField(max_length=20,blank=True,null=True)
     rate= models.DecimalField(max_digits=10,decimal_places=2,blank=True,null=True)
     tds = models.DecimalField(max_digits=20,decimal_places=2,blank=True,null=True)
+    tcs = models.DecimalField(max_digits=20,decimal_places=2,blank=True,null=True)
+    matching_status =models.BooleanField(default=False)
+    gstr2b_status = models.BooleanField(default=False,help_text='Pls. Tick if this  matches with GSTR-2B')
+    gstr3b_status = models.BooleanField(default=False,help_text='Pls. Tick if this  matches with GSTR-3B')
     #to be update when bill is supllied by party
     bill_number = models.CharField(max_length=50,blank=True,null=True)
     bill_date = models.DateField(blank=True,null=True)

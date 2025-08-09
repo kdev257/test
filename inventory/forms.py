@@ -1,7 +1,7 @@
 from django import forms
 from django.forms import inlineformset_factory
-from .models import Quotation,Quotation_Items,Purchase_Order,Purchase_Order_Items,Po_Lcr_Join,Gate_Entry,Material_Receipt_Note,Quality_Check,Vehicle_Unloading_Report,Vehicle_Unload_Items
-from masters.models import User_Roles,User,Standard_Quality_Specifications,Item,Supplier,Freight,Supplier_Service,Transaction_Type,Landed_Cost_Rule
+from .models import Quotation,Quotation_Items,Purchase_Order,Supplier_Invoice,Purchase_Order_Items,Po_Lcr_Join,Gate_Entry,Material_Receipt_Note,Quality_Check,Vehicle_Unloading_Report,Vehicle_Unload_Items,Receipt_Not_Vouchered
+from masters.models import User_Roles,User,Standard_Quality_Specifications,Item,Supplier,Freight,Supplier_Service,Transaction_Type,Landed_Cost_Rule,Unit
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 
@@ -303,4 +303,88 @@ class VehicleUnloadItemForm(forms.ModelForm):
     class Meta:
         model = Vehicle_Unload_Items
         fields = 'item','bill_quantity','actual_quantity'
+        
                  
+class Matching_Form(forms.ModelForm):    
+    class Meta:
+        model = Receipt_Not_Vouchered
+        fields = 'transaction_number','voucher_type','supplier','invoice_number','invoice_date','invoice_value','provision_amount','tax_account','tax_amount'
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(Matching_Form, self).__init__(*args, **kwargs)
+
+        if user:
+            try:
+                user_unit = user.user_roles.unit
+            except User_Roles.DoesNotExist:
+                user_unit = None
+
+            self.fields['supplier'].queryset = Supplier.objects.filter(unit=user_unit)
+
+        # Remove tax_account and tax_amount if voucher_type is not 'Freight'
+        voucher_type = self.initial.get('voucher_type') or getattr(self.instance, 'voucher_type', None)
+        if voucher_type != 'Freight':
+            self.fields.pop('tax_account', None)
+            self.fields.pop('tax_amount', None)
+            
+class SupplierInvoiceForm(forms.ModelForm):
+    MATCH_TYPE_CHOICES = [
+        ('Supplier_Match', 'Supplier_Match'),
+        ('Freight_match', 'Freight_Match'),
+    ]
+    match_type = forms.ChoiceField(
+        choices=MATCH_TYPE_CHOICES,
+        widget=forms.RadioSelect,
+        label="Match Type",
+        required=True
+    )
+
+    class Meta:
+        model = Supplier_Invoice
+        fields = ['transaction_type','supplier','unit','invoice_number', 'invoice_date', 'invoice_value','vat','cst','cgst','sgst','igst','match_type']
+        widgets = {
+            'invoice_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        supplier = kwargs.pop('supplier', None)
+        unit = kwargs.pop('unit',None)
+        super(SupplierInvoiceForm, self).__init__(*args, **kwargs)
+        self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=28)
+    #     self.fields['transaction_type'].widget.attrs['readonly'] = True
+    #     self.fields['transaction_type'].widget.attrs['disabled'] = True
+    #     self.fields['supplier'].widget.attrs['readonly'] = True
+    #     self.fields['supplier'].widget.attrs['disabled'] = True
+    #     self.fields['unit'].widget.attrs['readonly'] = True
+    #     self.fields['unit'].widget.attrs['disabled'] = True
+        
+        # if supplier:
+        #     self.fields.pop('supplier', None)
+        #     self.initial['supplier'] = supplier
+        # if unit:
+        #     self.fields.pop('unit', None)
+        #     self.initial['unit'] = unit
+                
+            
+class FreightInvoiceForm(forms.ModelForm):
+    class Meta:
+        model = Supplier_Invoice
+        fields = ['transaction_type', 'supplier', 'unit', 'invoice_number', 'invoice_date', 'invoice_value','cgst','sgst','igst']
+        widgets = {
+            'invoice_date': forms.DateInput(attrs={'type': 'date'}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        user = kwargs.pop('user', None)
+        super(FreightInvoiceForm, self).__init__(*args, **kwargs)
+
+        if user:
+            try:
+                user_unit = user.user_roles.unit
+            except User_Roles.DoesNotExist:
+                user_unit = None
+
+            self.fields['transaction_type'].queryset = Transaction_Type.objects.filter(id=29)
+            self.fields['supplier'].queryset = Supplier.objects.filter(unit=user_unit)
+    
+    
